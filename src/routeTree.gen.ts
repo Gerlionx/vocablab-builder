@@ -14,6 +14,7 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
+import { Route as WheelRouteImport } from './routes/wheel'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +41,11 @@ const SetPasswordRoute = SetPasswordRouteImport.update({
   path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WheelRoute = WheelRouteImport.update({
+  id: '/wheel',
+  path: '/wheel',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
   '/set-password': typeof SetPasswordRoute
+  '/wheel': typeof WheelRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
   '/set-password': typeof SetPasswordRoute
+  '/wheel': typeof WheelRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -62,13 +70,21 @@ export interface FileRoutesById {
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
   '/set-password': typeof SetPasswordRoute
+  '/wheel': typeof WheelRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/create' | '/home' | '/set-password'
+  fullPaths: '/' | '/account' | '/create' | '/home' | '/set-password' | '/wheel'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/account' | '/create' | '/home' | '/set-password'
-  id: '__root__' | '/' | '/account' | '/create' | '/home' | '/set-password'
+  to: '/' | '/account' | '/create' | '/home' | '/set-password' | '/wheel'
+  id:
+    | '__root__'
+    | '/'
+    | '/account'
+    | '/create'
+    | '/home'
+    | '/set-password'
+    | '/wheel'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -77,6 +93,7 @@ export interface RootRouteChildren {
   CreateRoute: typeof CreateRoute
   HomeRoute: typeof HomeRoute
   SetPasswordRoute: typeof SetPasswordRoute
+  WheelRoute: typeof WheelRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -116,6 +133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wheel': {
+      id: '/wheel'
+      path: '/wheel'
+      fullPath: '/wheel'
+      preLoaderRoute: typeof WheelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -125,6 +149,7 @@ const rootRouteChildren: RootRouteChildren = {
   CreateRoute: CreateRoute,
   HomeRoute: HomeRoute,
   SetPasswordRoute: SetPasswordRoute,
+  WheelRoute: WheelRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
