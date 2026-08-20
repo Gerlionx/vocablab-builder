@@ -166,3 +166,23 @@
     color: var(--color-foreground);
   }
 }
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@keyframes vocablab-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--spin-to, 3600deg));
+  }
+}
+
+@utility animate-wheel-spin {
+  animation: vocablab-spin 4.2s cubic-bezier(0.15, 0, 0.15, 1) forwards;
+}
