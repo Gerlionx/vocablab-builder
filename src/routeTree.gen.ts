@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const HomeRoute = HomeRouteImport.update({
   path: '/home',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
+  '/set-password': typeof SetPasswordRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
+  '/set-password': typeof SetPasswordRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
+  '/set-password': typeof SetPasswordRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/account' | '/create' | '/home'
+  fullPaths: '/' | '/account' | '/create' | '/home' | '/set-password'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/account' | '/create' | '/home'
-  id: '__root__' | '/' | '/account' | '/create' | '/home'
+  to: '/' | '/account' | '/create' | '/home' | '/set-password'
+  id: '__root__' | '/' | '/account' | '/create' | '/home' | '/set-password'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   CreateRoute: typeof CreateRoute
   HomeRoute: typeof HomeRoute
+  SetPasswordRoute: typeof SetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof HomeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   CreateRoute: CreateRoute,
   HomeRoute: HomeRoute,
+  SetPasswordRoute: SetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
