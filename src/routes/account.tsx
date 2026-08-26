@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppChrome } from "@/components/AppChrome";
+import { endTeacherSession } from "@/lib/teacher-session";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -119,6 +120,7 @@ function AccountPage() {
         <div className="mt-16">
           <Link
             to="/"
+            onClick={() => endTeacherSession()}
             className="text-sm font-medium text-destructive transition-opacity hover:opacity-80"
           >
             Log out

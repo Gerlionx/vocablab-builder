@@ -30,14 +30,7 @@ const w = (
 
 export const YEARS = ["Year 7", "Year 8", "Year 9"];
 export const TERMS = ["Term 1", "Term 2", "Term 3"];
-export const TOPICS = [
-  "Greetings",
-  "Numbers",
-  "Colours",
-  "Family",
-  "School",
-  "Free time",
-];
+export const TOPICS = ["Greetings", "Numbers", "Colours", "Family", "School", "Free time"];
 export const DIFFICULTIES: Difficulty[] = ["Low", "Medium", "High"];
 
 export const SEED_WORDS: Word[] = [
@@ -47,22 +40,8 @@ export const SEED_WORDS: Word[] = [
   w("Year 7", "Term 1", "Greetings", "Low", "Au revoir", "Goodbye"),
   w("Year 7", "Term 1", "Greetings", "Medium", "Ça va ?", "How are you?"),
   w("Year 7", "Term 1", "Greetings", "Medium", "Enchanté", "Nice to meet you"),
-  w(
-    "Year 7",
-    "Term 1",
-    "Greetings",
-    "High",
-    "Comment allez-vous ?",
-    "How are you? (formal)",
-  ),
-  w(
-    "Year 7",
-    "Term 1",
-    "Greetings",
-    "High",
-    "Je m'appelle…",
-    "My name is…",
-  ),
+  w("Year 7", "Term 1", "Greetings", "High", "Comment allez-vous ?", "How are you? (formal)"),
+  w("Year 7", "Term 1", "Greetings", "High", "Je m'appelle…", "My name is…"),
 
   // Year 7 — Term 1 — Numbers
   w("Year 7", "Term 1", "Numbers", "Low", "un", "one"),
@@ -101,14 +80,7 @@ export const SEED_WORDS: Word[] = [
   w("Year 7", "Term 2", "School", "Low", "le cahier", "the exercise book"),
   w("Year 7", "Term 2", "School", "Medium", "la trousse", "the pencil case"),
   w("Year 7", "Term 2", "School", "Medium", "J'étudie", "I study"),
-  w(
-    "Year 7",
-    "Term 2",
-    "School",
-    "High",
-    "Je dois faire mes devoirs",
-    "I have to do my homework",
-  ),
+  w("Year 7", "Term 2", "School", "High", "Je dois faire mes devoirs", "I have to do my homework"),
 
   // Year 7 — Term 2 — Free time
   w("Year 7", "Term 2", "Free time", "Low", "le foot", "football"),
@@ -135,7 +107,13 @@ export const SEED_WORDS: Word[] = [
   ),
 ];
 
-export const SEED_NAMES = [
+/**
+ * Temporary mock class list for classroom testing.
+ * Flip to false before real school use — fresh loads must start with an empty names box (GDPR).
+ */
+export const USE_DEMO_NAMES = true;
+
+export const DEMO_NAMES = [
   "Sophie",
   "Jack",
   "Oliver",
@@ -150,6 +128,50 @@ export const SEED_NAMES = [
   "Priya",
 ];
 
+/** @deprecated Prefer DEMO_NAMES + USE_DEMO_NAMES */
+export const SEED_NAMES = DEMO_NAMES;
+
 export function nextId() {
   return `w${++counter}`;
+}
+
+export type VocabFilter = {
+  years: string[];
+  terms: string[];
+  topics: string[];
+  difficulties: string[];
+};
+
+/** Empty list = any (all). Otherwise word must match one of the chosen values. */
+export function filterWords(words: Word[], filter: VocabFilter): Word[] {
+  return words.filter((word) => {
+    if (!word.french.trim() || !word.english.trim()) return false;
+    if (filter.years.length && !filter.years.includes(word.year)) return false;
+    if (filter.terms.length && !filter.terms.includes(word.term)) return false;
+    if (filter.topics.length && !filter.topics.includes(word.topic)) return false;
+    if (filter.difficulties.length && !filter.difficulties.includes(word.difficulty)) return false;
+    return true;
+  });
+}
+
+export function toggleFilterValue(current: string[], value: string): string[] {
+  if (current.includes(value)) return current.filter((v) => v !== value);
+  return [...current, value];
+}
+
+export function pickPrompt(
+  words: Word[],
+  avoidIds: Set<string> = new Set(),
+  direction: "french" | "english" | "random" = "random",
+): {
+  word: Word;
+  askFrench: boolean;
+} | null {
+  if (!words.length) return null;
+  const fresh = words.filter((word) => !avoidIds.has(word.id));
+  const pool = fresh.length ? fresh : words;
+  const word = pool[Math.floor(Math.random() * pool.length)]!;
+  const askFrench =
+    direction === "french" ? true : direction === "english" ? false : Math.random() < 0.5;
+  return { word, askFrench };
 }

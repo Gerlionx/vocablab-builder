@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { endTeacherSession } from "@/lib/teacher-session";
 
 export function AppChrome({ children }: { children: ReactNode }) {
   return (
@@ -32,48 +33,55 @@ export function TopBar() {
         Vocablab
       </Link>
 
-      <div className="flex items-center gap-7">
-        <Link
-          to="/vocabulary"
-          className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          activeProps={{ className: "text-foreground" }}
+      <div className="relative" ref={ref}>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-accent"
         >
-          Vocabulary
-        </Link>
-
-        <div className="relative" ref={ref}>
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            aria-haspopup="menu"
-            className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-surface active:bg-accent"
+          Marie
+        </button>
+        {open ? (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl bg-popover py-1.5 shadow-xl ring-1 ring-border"
           >
-            Marie
-          </button>
-          {open ? (
-            <div
-              role="menu"
-              className="absolute right-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-xl bg-popover py-1.5 shadow-xl ring-1 ring-border"
+            <Link
+              to="/game-settings"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-muted"
             >
-              <Link
-                to="/account"
-                onClick={() => setOpen(false)}
-                className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-surface"
-              >
-                Invite teacher
-              </Link>
-              <div className="my-1 h-px bg-line" />
-              <Link
-                to="/"
-                onClick={() => setOpen(false)}
-                className="block px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-surface"
-              >
-                Log out
-              </Link>
-            </div>
-          ) : null}
-        </div>
+              Game settings
+            </Link>
+            <Link
+              to="/vocabulary"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-muted"
+            >
+              Vocabulary
+            </Link>
+            <Link
+              to="/account"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-muted"
+            >
+              Invite teacher
+            </Link>
+            <div className="my-1 h-px bg-border" />
+            <Link
+              to="/"
+              onClick={() => {
+                endTeacherSession();
+                setOpen(false);
+              }}
+              className="block px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-muted"
+            >
+              Log out
+            </Link>
+          </div>
+        ) : null}
       </div>
     </nav>
   );

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { beginTeacherSession } from "@/lib/teacher-session";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,6 +36,7 @@ function LoginPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            beginTeacherSession();
             navigate({ to: "/home" });
           }}
           className="space-y-4 rounded-3xl bg-surface/60 p-8 ring-1 ring-border"

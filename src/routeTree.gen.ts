@@ -12,10 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as CreateRouteImport } from './routes/create'
+import { Route as GameSettingsRouteImport } from './routes/game-settings'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as VocabularyRouteImport } from './routes/vocabulary'
 import { Route as WheelRouteImport } from './routes/wheel'
+import { Route as GameSettingsIndexRouteImport } from './routes/game-settings.index'
+import { Route as GameSettingsWheelRouteImport } from './routes/game-settings.wheel'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -30,6 +33,11 @@ const AccountRoute = AccountRouteImport.update({
 const CreateRoute = CreateRouteImport.update({
   id: '/create',
   path: '/create',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GameSettingsRoute = GameSettingsRouteImport.update({
+  id: '/game-settings',
+  path: '/game-settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HomeRoute = HomeRouteImport.update({
@@ -52,15 +60,28 @@ const WheelRoute = WheelRouteImport.update({
   path: '/wheel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GameSettingsIndexRoute = GameSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GameSettingsRoute,
+} as any)
+const GameSettingsWheelRoute = GameSettingsWheelRouteImport.update({
+  id: '/wheel',
+  path: '/wheel',
+  getParentRoute: () => GameSettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/create': typeof CreateRoute
+  '/game-settings': typeof GameSettingsRouteWithChildren
   '/home': typeof HomeRoute
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
+  '/game-settings/wheel': typeof GameSettingsWheelRoute
+  '/game-settings/': typeof GameSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,16 +91,21 @@ export interface FileRoutesByTo {
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
+  '/game-settings/wheel': typeof GameSettingsWheelRoute
+  '/game-settings': typeof GameSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/create': typeof CreateRoute
+  '/game-settings': typeof GameSettingsRouteWithChildren
   '/home': typeof HomeRoute
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
+  '/game-settings/wheel': typeof GameSettingsWheelRoute
+  '/game-settings/': typeof GameSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,10 +113,13 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/create'
+    | '/game-settings'
     | '/home'
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
+    | '/game-settings/wheel'
+    | '/game-settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,21 +129,27 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
+    | '/game-settings/wheel'
+    | '/game-settings'
   id:
     | '__root__'
     | '/'
     | '/account'
     | '/create'
+    | '/game-settings'
     | '/home'
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
+    | '/game-settings/wheel'
+    | '/game-settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   CreateRoute: typeof CreateRoute
+  GameSettingsRoute: typeof GameSettingsRouteWithChildren
   HomeRoute: typeof HomeRoute
   SetPasswordRoute: typeof SetPasswordRoute
   VocabularyRoute: typeof VocabularyRoute
@@ -142,6 +177,13 @@ declare module '@tanstack/react-router' {
       path: '/create'
       fullPath: '/create'
       preLoaderRoute: typeof CreateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/game-settings': {
+      id: '/game-settings'
+      path: '/game-settings'
+      fullPath: '/game-settings'
+      preLoaderRoute: typeof GameSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/home': {
@@ -172,13 +214,42 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WheelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/game-settings/': {
+      id: '/game-settings/'
+      path: '/'
+      fullPath: '/game-settings/'
+      preLoaderRoute: typeof GameSettingsIndexRouteImport
+      parentRoute: typeof GameSettingsRoute
+    }
+    '/game-settings/wheel': {
+      id: '/game-settings/wheel'
+      path: '/wheel'
+      fullPath: '/game-settings/wheel'
+      preLoaderRoute: typeof GameSettingsWheelRouteImport
+      parentRoute: typeof GameSettingsRoute
+    }
   }
 }
+
+interface GameSettingsRouteChildren {
+  GameSettingsWheelRoute: typeof GameSettingsWheelRoute
+  GameSettingsIndexRoute: typeof GameSettingsIndexRoute
+}
+
+const GameSettingsRouteChildren: GameSettingsRouteChildren = {
+  GameSettingsWheelRoute: GameSettingsWheelRoute,
+  GameSettingsIndexRoute: GameSettingsIndexRoute,
+}
+
+const GameSettingsRouteWithChildren = GameSettingsRoute._addFileChildren(
+  GameSettingsRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   CreateRoute: CreateRoute,
+  GameSettingsRoute: GameSettingsRouteWithChildren,
   HomeRoute: HomeRoute,
   SetPasswordRoute: SetPasswordRoute,
   VocabularyRoute: VocabularyRoute,

@@ -21,6 +21,7 @@
 @theme inline {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Lora", ui-serif, Georgia, serif;
+  --font-kids: "Fredoka", "Trebuchet MS", ui-rounded, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -75,51 +76,51 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.21 0.006 285.9);
-  --surface: oklch(0.955 0.002 286);
-  --line: oklch(0.21 0.006 285.9 / 8%);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.006 285.9);
-  --popover: oklch(0.985 0 0);
-  --popover-foreground: oklch(0.21 0.006 285.9);
-  --primary: oklch(0.21 0.006 285.9);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.955 0.002 286);
-  --secondary-foreground: oklch(0.21 0.006 285.9);
-  --muted: oklch(0.955 0.002 286);
-  --muted-foreground: oklch(0.552 0.014 285.9);
-  --accent: oklch(0.94 0.002 286);
-  --accent-foreground: oklch(0.21 0.006 285.9);
-  --destructive: oklch(0.577 0.222 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-  --success: oklch(0.62 0.13 160);
-  --success-foreground: oklch(0.985 0 0);
-  --border: oklch(0.21 0.006 285.9 / 10%);
-  --input: oklch(0.21 0.006 285.9 / 12%);
-  --ring: oklch(0.21 0.006 285.9);
+  /* Vocablab brand — ink + teal classroom calm (one menu accent, not a rainbow) */
+  --radius: 0.85rem;
+  --background: oklch(0.985 0.01 220);
+  --foreground: oklch(0.27 0.035 250);
+  --surface: oklch(0.97 0.012 220);
+  --line: oklch(0.45 0.04 250 / 12%);
+  --card: oklch(0.995 0.006 220);
+  --card-foreground: oklch(0.27 0.035 250);
+  --popover: oklch(0.995 0.006 220);
+  --popover-foreground: oklch(0.27 0.035 250);
+  --primary: oklch(0.48 0.1 235);
+  --primary-foreground: oklch(0.99 0.01 220);
+  --secondary: oklch(0.94 0.02 230);
+  --secondary-foreground: oklch(0.32 0.05 245);
+  --muted: oklch(0.95 0.015 220);
+  --muted-foreground: oklch(0.48 0.03 250);
+  --accent: oklch(0.93 0.03 220);
+  --accent-foreground: oklch(0.3 0.05 245);
+  --destructive: oklch(0.55 0.18 25);
+  --destructive-foreground: oklch(0.99 0.01 90);
+  --success: oklch(0.55 0.11 160);
+  --success-foreground: oklch(0.99 0.01 90);
+  --border: oklch(0.45 0.04 250 / 14%);
+  --input: oklch(0.45 0.04 250 / 16%);
+  --ring: oklch(0.48 0.1 235);
   --wheel-1: oklch(0.71 0.17 22);
   --wheel-2: oklch(0.72 0.14 250);
   --wheel-3: oklch(0.85 0.16 88);
   --wheel-4: oklch(0.78 0.15 162);
   --wheel-5: oklch(0.71 0.15 300);
   --wheel-6: oklch(0.76 0.16 55);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.21 0.006 285.9);
-  --sidebar-primary: oklch(0.21 0.006 285.9);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.955 0.002 286);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.9);
-  --sidebar-border: oklch(0.21 0.006 285.9 / 10%);
-  --sidebar-ring: oklch(0.21 0.006 285.9);
+  --chart-1: oklch(0.55 0.12 235);
+  --chart-2: oklch(0.6 0.1 180);
+  --chart-3: oklch(0.45 0.08 250);
+  --chart-4: oklch(0.75 0.08 90);
+  --chart-5: oklch(0.65 0.1 40);
+  --sidebar: oklch(0.985 0.01 220);
+  --sidebar-foreground: oklch(0.27 0.035 250);
+  --sidebar-primary: oklch(0.48 0.1 235);
+  --sidebar-primary-foreground: oklch(0.99 0.01 220);
+  --sidebar-accent: oklch(0.94 0.02 230);
+  --sidebar-accent-foreground: oklch(0.27 0.035 250);
+  --sidebar-border: oklch(0.45 0.04 250 / 14%);
+  --sidebar-ring: oklch(0.48 0.1 235);
 }
-
 
 .dark {
   --background: oklch(0.129 0.042 264.695);
@@ -185,4 +186,416 @@
 
 @utility animate-wheel-spin {
   animation: vocablab-spin 4.2s cubic-bezier(0.15, 0, 0.15, 1) forwards;
+}
+
+@keyframes vocablab-confetti {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--cx, 0px), var(--cy, 80vh), 0) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+@keyframes vocablab-winner-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes vocablab-card-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 oklch(0.71 0.17 22 / 0%);
+  }
+  50% {
+    transform: scale(1.03);
+    box-shadow: 0 0 0 14px oklch(0.71 0.17 22 / 12%);
+  }
+}
+
+@keyframes vocablab-wheel-exit {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0) saturate(1);
+  }
+  100% {
+    transform: scale(0.92);
+    opacity: 0;
+    filter: blur(10px) saturate(0.85);
+  }
+}
+
+@keyframes vocablab-wheel-enter {
+  0% {
+    transform: scale(0.2) rotate(-12deg);
+    opacity: 0;
+    filter: blur(10px);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes vocablab-wheel-to-idle {
+  0% {
+    transform: scale(1);
+    filter: saturate(1) brightness(1);
+  }
+  35% {
+    transform: scale(1.04);
+    filter: saturate(1.22) brightness(1.06);
+  }
+  100% {
+    transform: scale(1);
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes vocablab-wheel-desk-enter {
+  0% {
+    transform: scale(0.72) rotate(-10deg);
+    opacity: 0;
+    filter: blur(14px) saturate(0.7);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+    filter: blur(0) saturate(1);
+  }
+}
+
+.wheel-slice-name {
+  opacity: 1;
+  filter: blur(0);
+  transition:
+    opacity 0.72s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.72s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.wheel-slice-name.is-hidden {
+  opacity: 0;
+  filter: blur(8px);
+}
+
+.vocablab-play-layer {
+  transition:
+    opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vocablab-play-layer.is-away {
+  opacity: 0;
+  filter: blur(12px);
+  transform: scale(0.92);
+  pointer-events: none;
+}
+
+@keyframes vocablab-word-in {
+  0% {
+    transform: translateY(28px) scale(0.72);
+    opacity: 0;
+    filter: blur(8px);
+  }
+  60% {
+    transform: translateY(-6px) scale(1.04);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes vocablab-score-burst {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.28);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes vocablab-float-plus {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-42px);
+    opacity: 0;
+  }
+}
+
+@keyframes vocablab-timer-urgent {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
+
+@keyframes vocablab-glow-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.6 0.15 250 / 0%);
+  }
+  50% {
+    box-shadow: 0 0 0 10px oklch(0.6 0.15 250 / 12%);
+  }
+}
+
+@keyframes vocablab-name-spot {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+    letter-spacing: -0.08em;
+  }
+  70% {
+    transform: scale(1.06);
+    opacity: 1;
+    letter-spacing: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes vocablab-wash-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes vocablab-toss-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.wheel-stage {
+  position: relative;
+  overflow: visible;
+  width: min(86dvh, calc(100vw - 2rem));
+  height: min(86dvh, calc(100vw - 2rem));
+  max-width: none;
+  flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+  .wheel-stage {
+    width: min(86dvh, calc(100vw - 2rem - var(--setup-shift, 0px)));
+    height: min(86dvh, calc(100vw - 2rem - var(--setup-shift, 0px)));
+  }
+}
+
+.wheel-floor {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  width: 58%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, oklch(0.22 0.04 80 / 0.32), transparent 70%);
+  filter: blur(14px);
+  transform: translateX(-50%);
+}
+
+.wheel-body {
+  position: absolute;
+  inset: 3%;
+}
+
+.wheel-chrome {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  padding: 3.8%;
+  background: conic-gradient(
+    from 200deg,
+    oklch(0.99 0.01 90),
+    oklch(0.74 0.03 80),
+    oklch(1 0 0),
+    oklch(0.58 0.02 75),
+    oklch(0.93 0.04 85),
+    oklch(0.68 0.03 80),
+    oklch(0.99 0.01 90)
+  );
+  box-shadow:
+    0 24px 48px oklch(0.28 0.04 70 / 0.34),
+    0 4px 0 oklch(0.55 0.02 80 / 0.35),
+    inset 0 2px 2px oklch(1 0 0 / 0.95),
+    inset 0 -3px 8px oklch(0.32 0.03 70 / 0.4);
+}
+
+.wheel-gleam {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    oklch(1 0 0 / 0) 28deg,
+    oklch(1 0 0 / 0.7) 48deg,
+    oklch(1 0 0 / 0) 70deg,
+    transparent 110deg,
+    oklch(1 0 0 / 0.28) 188deg,
+    transparent 220deg,
+    oklch(1 0 0 / 0.45) 300deg,
+    transparent 328deg
+  );
+  mix-blend-mode: screen;
+  opacity: 0.85;
+  mask: radial-gradient(circle at center, transparent 78%, #000 79.5%, #000 99%, transparent 100%);
+  animation: vocablab-rim-gleam 11s linear infinite;
+}
+
+.wheel-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 2px oklch(1 0 0 / 0.35),
+    inset 0 8px 18px oklch(1 0 0 / 0.18),
+    inset 0 -10px 20px oklch(0.2 0.03 80 / 0.22);
+}
+
+.wheel-glass {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 78% 46% at 28% 16%, oklch(1 0 0 / 0.42), transparent 58%),
+    radial-gradient(circle at 78% 72%, oklch(1 0 0 / 0.1), transparent 36%),
+    linear-gradient(165deg, oklch(1 0 0 / 0.12) 0%, transparent 38%, oklch(0.2 0.03 80 / 0.08) 100%);
+}
+
+.wheel-pegs {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+}
+
+.wheel-pointer-wrap {
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  /* Rest stroke-tip at chrome (394, 200); hinge at (446, 200). */
+  right: -9.508%;
+  z-index: 8;
+  width: 13.871%;
+  min-width: 0;
+  max-width: none;
+  transform: translateY(-50%);
+  filter: drop-shadow(0 8px 10px oklch(0.2 0.04 80 / 0.42));
+}
+
+.wheel-pointer {
+  display: block;
+  overflow: visible;
+  width: 100%;
+  height: auto;
+  transform-origin: 87.778% 50%;
+  will-change: transform;
+  transition: none;
+}
+
+@keyframes vocablab-rim-gleam {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.wheel-hot-glow {
+  animation: vocablab-hot-breathe 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes vocablab-hot-breathe {
+  0%,
+  100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.toss-scene {
+  perspective: 900px;
+  animation: vocablab-toss-float 2.4s ease-in-out infinite;
+}
+
+.toss-coin {
+  position: relative;
+  width: min(42vw, 280px);
+  height: min(42vw, 280px);
+  transform-style: preserve-3d;
+}
+
+.toss-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  backface-visibility: hidden;
+  font-family: Fredoka, "Trebuchet MS", sans-serif;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 24px 50px oklch(0.25 0.04 80 / 0.4),
+    inset 0 3px 8px oklch(1 0 0 / 0.35),
+    inset 0 -8px 18px oklch(0.15 0.03 80 / 0.28);
+}
+
+.toss-front {
+  transform: translateZ(6px);
+}
+
+.toss-back {
+  transform: rotateY(180deg) translateZ(6px);
 }
