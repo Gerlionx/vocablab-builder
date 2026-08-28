@@ -2,13 +2,7 @@ import type { WheelSettings } from "./game-settings.ts";
 import { canRevealMore } from "./wheel-answer-reveal.ts";
 import { pointsForAnswer } from "./wheel-scoring.ts";
 
-export type TurnScene =
-  | "wheel"
-  | "spinning"
-  | "landed"
-  | "exiting"
-  | "question"
-  | "entering";
+export type TurnScene = "wheel" | "spinning" | "landed" | "exiting" | "question" | "entering";
 
 /** Whether the teacher can start the question for the landed student. */
 export function canPlayLanded(scene: TurnScene, pickedName: string | null): boolean {

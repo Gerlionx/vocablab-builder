@@ -58,14 +58,7 @@ export const Route = createFileRoute("/wheel")({
 
 type TeamId = number;
 type Scene =
-  | "toss"
-  | "wheel"
-  | "spinning"
-  | "landed"
-  | "exiting"
-  | "question"
-  | "entering"
-  | "winner";
+  "toss" | "wheel" | "spinning" | "landed" | "exiting" | "question" | "entering" | "winner";
 type Prompt = { word: Word; askFrench: boolean };
 type Player = { name: string; team: TeamId };
 
@@ -344,7 +337,7 @@ function WheelPage() {
       lastUrgent.current = sec;
       void playUrgentTick();
     }
-  }, [banks, timeMatch, scene, turn]);
+  }, [banks, timeMatch, scene, turn, panelOpen]);
 
   useEffect(() => {
     const sim = new WheelPhysics(Math.max(1, slices.length), {

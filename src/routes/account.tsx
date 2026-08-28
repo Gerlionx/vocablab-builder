@@ -50,17 +50,12 @@ function AccountPage() {
         </p>
 
         <section className="mt-12">
-          <h2 className="text-lg font-semibold tracking-tight">
-            Invite a teacher
-          </h2>
+          <h2 className="text-lg font-semibold tracking-tight">Invite a teacher</h2>
           <form
             onSubmit={(e) => {
               e.preventDefault();
               if (!email.trim()) return;
-              setInvites((prev) => [
-                { email: email.trim(), status: "Pending" },
-                ...prev,
-              ]);
+              setInvites((prev) => [{ email: email.trim(), status: "Pending" }, ...prev]);
               setEmail("");
             }}
             className="mt-4 flex gap-2"
@@ -102,9 +97,7 @@ function AccountPage() {
                       >
                         Accept invite
                       </Link>
-                      <span className="text-xs text-muted-foreground">
-                        Pending
-                      </span>
+                      <span className="text-xs text-muted-foreground">Pending</span>
                     </>
                   ) : (
                     <span className="rounded-md bg-success/10 px-2.5 py-1 text-xs font-medium text-success">

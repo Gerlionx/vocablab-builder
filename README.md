@@ -2,7 +2,7 @@
 
 Build a complete clickable visual prototype of VOCABLAB, a web app for one UK secondary French teacher. She uses it on a laptop with a classroom projector (mouse and touch must both work).
 
-You own ALL graphics: layout, typography, colours, buttons, icons, images, empty states, hover/press states, and every clickable link between screens. Use dummy data. Do NOT build a real backend, real authentication, SMTP, CSV parsing, or game logic. Fake the flows so every button goes to the right screen.
+You own ALL graphics: layout, typography, colours, buttons, icons, images, empty states, hover/press states, and every clickable link between screens. Use dummy data. Do NOT build a real backend, real authentication, SMTP, or CSV parsing. Fake the non-game flows so every button goes to the right screen.
 
 BRAND
 
@@ -20,7 +20,7 @@ BRAND
 
 SCREENS AND CLICK MAP
 
-1) Log in
+1. Log in
 
 - Email + password + Log in button.
 
@@ -30,7 +30,7 @@ SCREENS AND CLICK MAP
 
 - No register link.
 
-2) Home
+2. Home
 
 - Almost empty. One strong centre button: Create.
 
@@ -48,7 +48,7 @@ SCREENS AND CLICK MAP
 
 - Log out → Log in.
 
-3) Account / Invite teacher
+3. Account / Invite teacher
 
 - Email field + Send.
 
@@ -58,7 +58,7 @@ SCREENS AND CLICK MAP
 
 - Log out → Log in.
 
-4) Set password (invited teacher)
+4. Set password (invited teacher)
 
 - Separate page, linked from a dummy “Accept invite” link on the Invite list (so it is reachable).
 
@@ -66,7 +66,7 @@ SCREENS AND CLICK MAP
 
 - Save → Log in (or Home). Dummy only.
 
-5) Vocabulary
+5. Vocabulary
 
 This page must look excellent and easy. It is a teacher editor, not a spreadsheet dump.
 
@@ -86,7 +86,7 @@ Each vocabulary ITEM is ONE thing with TWO parts, shown on ONE line:
 
 - English (styled as English, clearly different)
 
-Example line:  J'étudie    I study
+Example line: J'étudie I study
 
 She must be able to edit French and English separately (inline or edit panel).
 
@@ -120,9 +120,9 @@ Delete Year: show a confirmation warning first (“This will delete all words in
 
 Download vocabulary / Upload vocabulary: do NOT label them “CSV”. Upload in the prototype can open a file picker then a dummy dialog: if the year is new → “Year 7 will be added”; if the year exists → “Year 8 already exists — Keep mine / Replace whole year”.
 
-Dummy content: seed a realistic slice of Year 7 French so the page looks real (greetings, numbers, colours, family, etc.). Mix Low (bold), Medium (normal), High (star). Include at least Terms 1–2 and several topics.
+Dummy content: seed realistic French vocabulary for Years 7–9 so the page looks real. Mix Low (bold), Medium (normal), High (star), with terms and topics for each year.
 
-6) Create
+6. Create
 
 - Only ONE game tile: Wheel of names.
 
@@ -132,7 +132,7 @@ Dummy content: seed a realistic slice of Year 7 French so the page looks real (g
 
 - Back from this page → Home.
 
-7) Wheel of names (design demo, not a working game)
+7. Wheel of names
 
 - Back → Create.
 
@@ -140,7 +140,11 @@ Dummy content: seed a realistic slice of Year 7 French so the page looks real (g
 
 - Main area: a very nice colourful prize-wheel / wheel of names, already populated with those dummy names, clearly drawn and visible.
 
-- Big Spin button. It must not run real logic. A short decorative spin animation is OK so the design can be judged; it does not need to land on a fair winner or read the textarea.
+- Big Spin button. After the wheel selects a student, show Skip and Play: Skip spins again, while Play starts the vocabulary question.
+
+- During a question, Hint progressively reveals the answer and reduces the available score by one point; a fully revealed answer is worth zero. Got it awards the remaining points; Missed awards zero.
+
+- Keep the leaderboard compact, with one coloured score pill per student in solo mode or per team in team mode. After a result, the teacher explicitly starts the next turn.
 
 - High contrast, big labels, projector-friendly.
 

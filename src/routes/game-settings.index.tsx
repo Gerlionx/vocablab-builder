@@ -22,9 +22,7 @@ function GameSettingsHub() {
       >
         &larr; Home
       </Link>
-      <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">
-        Create
-      </h1>
+      <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">Create</h1>
       <p className="mt-2 max-w-lg text-sm text-muted-foreground">
         Prep before the bell. Pick a game, save lessons with vocabulary and a game mode, then in
         class you only load a lesson and paste names.

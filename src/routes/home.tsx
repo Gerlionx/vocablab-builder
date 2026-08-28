@@ -30,9 +30,7 @@ function HomePage() {
           to="/create"
           className="grid size-40 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-4 focus:ring-offset-background active:scale-95"
         >
-          <span className="text-sm font-medium uppercase tracking-[0.25em]">
-            Activity
-          </span>
+          <span className="text-sm font-medium uppercase tracking-[0.25em]">Activity</span>
         </Link>
       </main>
     </AppChrome>

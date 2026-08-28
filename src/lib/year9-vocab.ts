@@ -1,7 +1,13 @@
 import { type Word } from "./vocab-data";
 
 let counter = 0;
-const w = (term: string, topic: string, diff: Word["difficulty"], french: string, english: string): Word => ({
+const w = (
+  term: string,
+  topic: string,
+  diff: Word["difficulty"],
+  french: string,
+  english: string,
+): Word => ({
   id: `y9-${++counter}`,
   year: "Year 9",
   term,
@@ -18,7 +24,13 @@ export const YEAR9_WORDS: Word[] = [
   w("Term 1", "Identity", "Low", "j'ai quatorze ans", "I am 14 years old"),
   w("Term 1", "Identity", "Low", "j'ai", "I have"),
   w("Term 1", "Identity", "Low", "les cheveux blonds, bruns, roux", "blond, brown, ginger hair"),
-  w("Term 1", "Identity", "Low", "les cheveux longs, courts, mi-longs", "long, short, mid-length hair"),
+  w(
+    "Term 1",
+    "Identity",
+    "Low",
+    "les cheveux longs, courts, mi-longs",
+    "long, short, mid-length hair",
+  ),
   w("Term 1", "Identity", "Low", "les yeux marron, bleus, noisette…", "brown, blue, hazel eyes"),
   w("Term 1", "Identity", "Low", "je suis", "I am"),
   w("Term 1", "Identity", "Low", "grand(e), petit(e)", "tall, small"),
@@ -76,7 +88,13 @@ export const YEAR9_WORDS: Word[] = [
   w("Term 1", "Relationships", "Low", "mon petit ami/copain", "my boyfriend"),
   w("Term 1", "Relationships", "Low", "ma petite amie/copine", "my girlfriend"),
   w("Term 1", "Relationships", "Low", "écoute mes problèmes", "listens to my problems"),
-  w("Term 1", "Relationships", "Low", "parle de (tout) avec moi", "talks about (everything) with me"),
+  w(
+    "Term 1",
+    "Relationships",
+    "Low",
+    "parle de (tout) avec moi",
+    "talks about (everything) with me",
+  ),
   w("Term 1", "Relationships", "Low", "aide tout le monde", "helps everyone"),
   w("Term 1", "Relationships", "Low", "respecte mes opinions", "respects my opinions"),
   w("Term 1", "Relationships", "Low", "aime les mêmes choses", "likes the same things"),
@@ -131,7 +149,13 @@ export const YEAR9_WORDS: Word[] = [
   w("Term 2", "Opinions", "Low", "je me dispute avec le prof", "I argue with the teacher"),
   w("Term 2", "Opinions", "Low", "je suis fort en …", "I am strong at"),
   w("Term 2", "Opinions", "Low", "je suis faible en …", "I am weak at"),
-  w("Term 2", "Opinions", "High", "je ne comprends rien en …", "I don't understand anything in ..."),
+  w(
+    "Term 2",
+    "Opinions",
+    "High",
+    "je ne comprends rien en …",
+    "I don't understand anything in ...",
+  ),
   w("Term 2", "Opinions", "Low", "je trouve le français(difficile)", "I find (French) difficult"),
   // Term 2 — School life
   w("Term 2", "School life", "Low", "je révise", "I revise"),
@@ -186,7 +210,13 @@ export const YEAR9_WORDS: Word[] = [
   // Term 3
   // Term 3 — Celebrations
   w("Term 3", "Celebrations", "Low", "le jour de l'an", "New Year's Day"),
-  w("Term 3", "Celebrations", "Low", "la fête des Rois / l'Épiphanie", "Twelfth Night / Kings' day"),
+  w(
+    "Term 3",
+    "Celebrations",
+    "Low",
+    "la fête des Rois / l'Épiphanie",
+    "Twelfth Night / Kings' day",
+  ),
   w("Term 3", "Celebrations", "Low", "la Chandeleur", "French pancake day (2/02)"),
   w("Term 3", "Celebrations", "Low", "Mardi Gras", "carnival time / Shrove Tuesday"),
   w("Term 3", "Celebrations", "Low", "La Saint Valentin", "Valentine's day"),
@@ -356,7 +386,13 @@ export const YEAR9_WORDS: Word[] = [
   w("Term 5", "Leisure", "Low", "la randonnée", "hiking"),
   w("Term 5", "Leisure", "Low", "la voile", "sailing"),
   w("Term 5", "Leisure", "High", "un vrai défi", "a real challenge"),
-  w("Term 5", "Leisure", "Low", "c'est bon pour le corps, le mental", "it's good for the body/mind"),
+  w(
+    "Term 5",
+    "Leisure",
+    "Low",
+    "c'est bon pour le corps, le mental",
+    "it's good for the body/mind",
+  ),
   w("Term 5", "Leisure", "Low", "ça booste le moral", "it boosts my mood"),
   w("Term 5", "Leisure", "Low", "la lecture", "reading"),
   w("Term 5", "Leisure", "Low", "un livre", "a book"),

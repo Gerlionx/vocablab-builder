@@ -18,14 +18,12 @@ export const Route = createFileRoute("/vocabulary")({
       { title: "Vocabulary — Vocablab" },
       {
         name: "description",
-        content:
-          "Browse and edit French vocabulary by year and term in a booklet-style layout.",
+        content: "Browse and edit French vocabulary by year and term in a booklet-style layout.",
       },
       { property: "og:title", content: "Vocabulary — Vocablab" },
       {
         property: "og:description",
-        content:
-          "Browse and edit French vocabulary by year and term in a booklet-style layout.",
+        content: "Browse and edit French vocabulary by year and term in a booklet-style layout.",
       },
     ],
   }),
@@ -62,17 +60,13 @@ function VocabularyPage() {
   const [editNameValue, setEditNameValue] = useState("");
   const [newName, setNewName] = useState("");
   const [download, setDownload] = useState(false);
-  const [upload, setUpload] = useState<null | { year: string; exists: boolean }>(
-    null,
-  );
+  const [upload, setUpload] = useState<null | { year: string; exists: boolean }>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const yearWords = useMemo(
     () =>
       words.filter(
-        (word) =>
-          word.year === year &&
-          (difficulty === ALL || word.difficulty === difficulty),
+        (word) => word.year === year && (difficulty === ALL || word.difficulty === difficulty),
       ),
     [words, year, difficulty],
   );
@@ -105,11 +99,7 @@ function VocabularyPage() {
     setSelectedTerm(null);
   }, [year]);
 
-  function renameManagedItem(
-    kind: "year" | "term" | "topic",
-    from: string,
-    to: string,
-  ): boolean {
+  function renameManagedItem(kind: "year" | "term" | "topic", from: string, to: string): boolean {
     const trimmed = to.trim();
     if (!trimmed || trimmed === from) return false;
 
@@ -146,9 +136,7 @@ function VocabularyPage() {
     const payload = { ...d, image };
     if (d.id) {
       setWords((prev) =>
-        prev.map((w) =>
-          w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w,
-        ),
+        prev.map((w) => (w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w)),
       );
     } else {
       setWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
@@ -171,12 +159,8 @@ function VocabularyPage() {
         <header className="flex flex-wrap items-end justify-between gap-4">
           <h1 className="text-4xl font-medium tracking-tight">Vocabulary</h1>
           <div className="flex gap-2">
-            <GhostButton onClick={() => setDownload(true)}>
-              Download vocabulary
-            </GhostButton>
-            <GhostButton onClick={() => fileRef.current?.click()}>
-              Upload vocabulary
-            </GhostButton>
+            <GhostButton onClick={() => setDownload(true)}>Download vocabulary</GhostButton>
+            <GhostButton onClick={() => fileRef.current?.click()}>Upload vocabulary</GhostButton>
             <input
               ref={fileRef}
               type="file"
@@ -271,8 +255,7 @@ function VocabularyPage() {
                   {selectedTerm}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {bookletTopics.reduce((count, section) => count + section.words.length, 0)}{" "}
-                  words
+                  {bookletTopics.reduce((count, section) => count + section.words.length, 0)} words
                 </p>
               </header>
 
@@ -309,8 +292,8 @@ function VocabularyPage() {
           <div className="mt-20 rounded-3xl bg-surface/60 px-8 py-16 text-center ring-1 ring-border">
             <p className="text-lg font-medium">Nothing here yet</p>
             <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-              No words match these filters. Try another difficulty, or add your
-              first word for {year}.
+              No words match these filters. Try another difficulty, or add your first word for{" "}
+              {year}.
             </p>
           </div>
         ) : (
@@ -382,9 +365,7 @@ function VocabularyPage() {
               <Field label="Difficulty">
                 <NativeSelect
                   value={draft.difficulty}
-                  onChange={(v) =>
-                    setDraft({ ...draft, difficulty: v as Difficulty })
-                  }
+                  onChange={(v) => setDraft({ ...draft, difficulty: v as Difficulty })}
                   options={DIFFICULTIES}
                 />
               </Field>
@@ -429,13 +410,7 @@ function VocabularyPage() {
       {/* Manage year / term / topic */}
       {manage ? (
         <Modal
-          title={
-            manage === "year"
-              ? "Years"
-              : manage === "term"
-                ? "Terms"
-                : "Topics"
-          }
+          title={manage === "year" ? "Years" : manage === "term" ? "Terms" : "Topics"}
           onClose={() => {
             setManage(null);
             setNewName("");
@@ -444,104 +419,102 @@ function VocabularyPage() {
           }}
         >
           <ul className="mb-6">
-            {(manage === "year" ? years : manage === "term" ? terms : topics).map(
-              (name) => (
-                <li
-                  key={name}
-                  className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm"
-                >
+            {(manage === "year" ? years : manage === "term" ? terms : topics).map((name) => (
+              <li
+                key={name}
+                className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm"
+              >
+                {editingName === name ? (
+                  <input
+                    autoFocus
+                    value={editNameValue}
+                    onChange={(e) => setEditNameValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (manage && renameManagedItem(manage, name, editNameValue)) {
+                          setEditingName(null);
+                          setEditNameValue("");
+                        }
+                      }
+                      if (e.key === "Escape") {
+                        setEditingName(null);
+                        setEditNameValue("");
+                      }
+                    }}
+                    className="min-w-0 flex-1 rounded-lg bg-surface px-3 py-1.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                ) : (
+                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                )}
+                <div className="flex shrink-0 gap-3">
                   {editingName === name ? (
-                    <input
-                      autoFocus
-                      value={editNameValue}
-                      onChange={(e) => setEditNameValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
                           if (manage && renameManagedItem(manage, name, editNameValue)) {
                             setEditingName(null);
                             setEditNameValue("");
                           }
-                        }
-                        if (e.key === "Escape") {
-                          setEditingName(null);
-                          setEditNameValue("");
-                        }
-                      }}
-                      className="min-w-0 flex-1 rounded-lg bg-surface px-3 py-1.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate">{name}</span>
-                  )}
-                  <div className="flex shrink-0 gap-3">
-                    {editingName === name ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (manage && renameManagedItem(manage, name, editNameValue)) {
-                              setEditingName(null);
-                              setEditNameValue("");
-                            }
-                          }}
-                          className="text-xs font-medium text-foreground hover:opacity-80"
-                        >
-                          Save
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingName(null);
-                            setEditNameValue("");
-                          }}
-                          className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : (
+                        }}
+                        className="text-xs font-medium text-foreground hover:opacity-80"
+                      >
+                        Save
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
-                          setEditingName(name);
-                          setEditNameValue(name);
+                          setEditingName(null);
+                          setEditNameValue("");
                         }}
                         className="text-xs font-medium text-muted-foreground hover:text-foreground"
                       >
-                        Edit
+                        Cancel
                       </button>
-                    )}
+                    </>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => {
-                        if (manage === "year") {
-                          setYears((p) => p.filter((x) => x !== name));
-                          setWords((p) => p.filter((w) => w.year !== name));
-                          if (year === name) {
-                            const left = years.filter((x) => x !== name);
-                            setYear(left[0] ?? "");
-                          }
-                        } else if (manage === "term") {
-                          setTerms((p) => p.filter((x) => x !== name));
-                          setWords((p) => p.filter((w) => w.term !== name));
-                          if (selectedTerm === name) setSelectedTerm(null);
-                        } else {
-                          setTopics((p) => p.filter((x) => x !== name));
-                          setWords((p) => p.filter((w) => w.topic !== name));
-                        }
-                        if (editingName === name) {
-                          setEditingName(null);
-                          setEditNameValue("");
-                        }
+                        setEditingName(name);
+                        setEditNameValue(name);
                       }}
-                      className="text-xs font-medium text-destructive/70 hover:text-destructive"
+                      className="text-xs font-medium text-muted-foreground hover:text-foreground"
                     >
-                      Delete
+                      Edit
                     </button>
-                  </div>
-                </li>
-              ),
-            )}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (manage === "year") {
+                        setYears((p) => p.filter((x) => x !== name));
+                        setWords((p) => p.filter((w) => w.year !== name));
+                        if (year === name) {
+                          const left = years.filter((x) => x !== name);
+                          setYear(left[0] ?? "");
+                        }
+                      } else if (manage === "term") {
+                        setTerms((p) => p.filter((x) => x !== name));
+                        setWords((p) => p.filter((w) => w.term !== name));
+                        if (selectedTerm === name) setSelectedTerm(null);
+                      } else {
+                        setTopics((p) => p.filter((x) => x !== name));
+                        setWords((p) => p.filter((w) => w.topic !== name));
+                      }
+                      if (editingName === name) {
+                        setEditingName(null);
+                        setEditNameValue("");
+                      }
+                    }}
+                    className="text-xs font-medium text-destructive/70 hover:text-destructive"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
           </ul>
           <form
             className="flex gap-2"
@@ -559,11 +532,7 @@ function VocabularyPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder={
-                manage === "year"
-                  ? "Year 10"
-                  : manage === "term"
-                    ? "Term 4"
-                    : "Holidays"
+                manage === "year" ? "Year 10" : manage === "term" ? "Term 4" : "Holidays"
               }
               className="flex-1 rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
             />
@@ -606,8 +575,8 @@ function VocabularyPage() {
       {download ? (
         <Modal title="Download vocabulary" onClose={() => setDownload(false)}>
           <p className="text-sm text-muted-foreground">
-            Your vocabulary file for {year} has been prepared. In this preview no
-            file is actually saved.
+            Your vocabulary file for {year} has been prepared. In this preview no file is actually
+            saved.
           </p>
           <div className="mt-8 flex justify-end">
             <button
@@ -627,8 +596,7 @@ function VocabularyPage() {
           {upload.exists ? (
             <>
               <p className="text-sm text-muted-foreground">
-                {upload.year} already exists. What would you like to do with the
-                words in your file?
+                {upload.year} already exists. What would you like to do with the words in your file?
               </p>
               <div className="mt-8 flex justify-end gap-2">
                 <GhostButton onClick={() => setUpload(null)}>Keep mine</GhostButton>
@@ -651,9 +619,7 @@ function VocabularyPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setYears((p) =>
-                      p.includes(upload.year) ? p : [...p, upload.year],
-                    );
+                    setYears((p) => (p.includes(upload.year) ? p : [...p, upload.year]));
                     setUpload(null);
                   }}
                   className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
@@ -722,13 +688,7 @@ function VocabRow({
   );
 }
 
-function GhostButton({
-  children,
-  onClick,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-}) {
+function GhostButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
   return (
     <button
       type="button"
