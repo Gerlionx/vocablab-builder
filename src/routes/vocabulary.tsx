@@ -1,6 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppChrome } from "@/components/AppChrome";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   DIFFICULTIES,
   SEED_WORDS,
@@ -58,6 +64,10 @@ function VocabularyPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmYear, setConfirmYear] = useState(false);
   const [manage, setManage] = useState<null | "year" | "term" | "topic">(null);
+  const [editingTopic, setEditingTopic] = useState<string | null>(null);
+  const [editTopicValue, setEditTopicValue] = useState("");
+  const [openTerms, setOpenTerms] = useState<string[]>([]);
+  const [openTopics, setOpenTopics] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [download, setDownload] = useState(false);
   const [upload, setUpload] = useState<null | { year: string; exists: boolean }>(
@@ -91,6 +101,38 @@ function VocabularyPage() {
     }
     return map;
   }, [filtered, terms, topics]);
+
+  useEffect(() => {
+    if (term !== ALL) {
+      setOpenTerms((prev) => (prev.includes(term) ? prev : [...prev, term]));
+    }
+    if (topic !== ALL) {
+      for (const [termName, byTopic] of grouped) {
+        if (!byTopic.has(topic)) continue;
+        const topicKey = `${termName}::${topic}`;
+        setOpenTerms((prev) => (prev.includes(termName) ? prev : [...prev, termName]));
+        setOpenTopics((prev) => (prev.includes(topicKey) ? prev : [...prev, topicKey]));
+      }
+    }
+  }, [term, topic, grouped]);
+
+  function topicKey(termName: string, topicName: string) {
+    return `${termName}::${topicName}`;
+  }
+
+  function renameTopic(from: string, to: string) {
+    const trimmed = to.trim();
+    if (!trimmed || trimmed === from || topics.includes(trimmed)) return false;
+    setTopics((prev) => prev.map((name) => (name === from ? trimmed : name)));
+    setWords((prev) =>
+      prev.map((word) => (word.topic === from ? { ...word, topic: trimmed } : word)),
+    );
+    if (topic === from) setTopic(trimmed);
+    setOpenTopics((prev) =>
+      prev.map((key) => (key.endsWith(`::${from}`) ? key.replace(`::${from}`, `::${trimmed}`) : key)),
+    );
+    return true;
+  }
 
   function saveDraft(d: Draft) {
     if (d.id) {
@@ -184,7 +226,31 @@ function VocabularyPage() {
             <span>
               <span className="text-foreground">*</span> = High
             </span>
-            <span className="ml-auto flex gap-3">
+            <span className="ml-auto flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenTerms([...grouped.keys()]);
+                  setOpenTopics(
+                    [...grouped.entries()].flatMap(([termName, byTopic]) =>
+                      [...byTopic.keys()].map((topicName) => topicKey(termName, topicName)),
+                    ),
+                  );
+                }}
+                className="underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Expand all
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOpenTerms([]);
+                  setOpenTopics([]);
+                }}
+                className="underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Collapse all
+              </button>
               <button
                 type="button"
                 onClick={() => setManage("year")}
@@ -220,66 +286,106 @@ function VocabularyPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-10 space-y-14">
-            {[...grouped.entries()].map(([termName, byTopic]) => (
-              <section key={termName}>
-                <h2 className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                  {year} · {termName}
-                </h2>
-                <div className="mt-6 space-y-10">
-                  {[...byTopic.entries()].map(([topicName, list]) => (
-                    <article key={topicName}>
-                      <h3 className="text-lg font-semibold tracking-tight">
-                        {topicName}
-                      </h3>
-                      <ul className="mt-3">
-                        {list.map((item) => (
-                          <li
-                            key={item.id}
-                            className="group flex items-center justify-between gap-4 border-b border-line py-3"
-                          >
-                            <div
-                              className={`flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-1 ${
-                                item.difficulty === "Low"
-                                  ? "font-semibold text-foreground"
-                                  : "font-normal text-muted-foreground"
-                              }`}
-                            >
-                              <span className="font-serif text-lg italic">
-                                {item.difficulty === "High" ? "* " : ""}
-                                {item.french}
+          <Accordion
+            type="multiple"
+            value={openTerms}
+            onValueChange={setOpenTerms}
+            className="mt-10 space-y-2"
+          >
+            {[...grouped.entries()].map(([termName, byTopic]) => {
+              const termWordCount = [...byTopic.values()].reduce(
+                (count, list) => count + list.length,
+                0,
+              );
+              return (
+                <AccordionItem
+                  key={termName}
+                  value={termName}
+                  className="rounded-2xl border border-line px-4"
+                >
+                  <AccordionTrigger className="py-4 hover:no-underline">
+                    <span className="flex min-w-0 items-baseline gap-2 text-left">
+                      <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                        {year} · {termName}
+                      </span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        ({termWordCount})
+                      </span>
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <Accordion
+                      type="multiple"
+                      value={openTopics}
+                      onValueChange={setOpenTopics}
+                      className="space-y-1"
+                    >
+                      {[...byTopic.entries()].map(([topicName, list]) => (
+                        <AccordionItem
+                          key={topicKey(termName, topicName)}
+                          value={topicKey(termName, topicName)}
+                          className="border-none"
+                        >
+                          <AccordionTrigger className="py-3 text-base font-semibold tracking-tight hover:no-underline">
+                            <span className="flex min-w-0 items-baseline gap-2 text-left">
+                              <span>{topicName}</span>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                ({list.length})
                               </span>
-                              <span className="text-base">{item.english}</span>
-                            </div>
-                            <div className="flex shrink-0 gap-3 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-                              <button
-                                type="button"
-                                onClick={() => setDraft({ ...item })}
-                                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setWords((prev) =>
-                                    prev.filter((x) => x.id !== item.id),
-                                  )
-                                }
-                                className="text-xs font-medium text-destructive/70 hover:text-destructive"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent className="pb-2">
+                            <ul>
+                              {list.map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="group flex items-center justify-between gap-4 border-b border-line py-3"
+                                >
+                                  <div
+                                    className={`flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-1 ${
+                                      item.difficulty === "Low"
+                                        ? "font-semibold text-foreground"
+                                        : "font-normal text-muted-foreground"
+                                    }`}
+                                  >
+                                    <span className="font-serif text-lg italic">
+                                      {item.difficulty === "High" ? "* " : ""}
+                                      {item.french}
+                                    </span>
+                                    <span className="text-base">{item.english}</span>
+                                  </div>
+                                  <div className="flex shrink-0 gap-3 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => setDraft({ ...item })}
+                                      className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setWords((prev) =>
+                                          prev.filter((x) => x.id !== item.id),
+                                        )
+                                      }
+                                      className="text-xs font-medium text-destructive/70 hover:text-destructive"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
         )}
 
         <div className="mt-20 border-t border-line pt-6">
@@ -377,6 +483,8 @@ function VocabularyPage() {
           onClose={() => {
             setManage(null);
             setNewName("");
+            setEditingTopic(null);
+            setEditTopicValue("");
           }}
         >
           <ul className="mb-6">
@@ -384,33 +492,103 @@ function VocabularyPage() {
               (name) => (
                 <li
                   key={name}
-                  className="flex items-center justify-between border-b border-line py-2.5 text-sm"
+                  className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm"
                 >
-                  <span>{name}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (manage === "year") {
-                        setYears((p) => p.filter((x) => x !== name));
-                        setWords((p) => p.filter((w) => w.year !== name));
-                        if (year === name) {
-                          const left = years.filter((x) => x !== name);
-                          setYear(left[0] ?? "");
+                  {manage === "topic" && editingTopic === name ? (
+                    <input
+                      autoFocus
+                      value={editTopicValue}
+                      onChange={(e) => setEditTopicValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (renameTopic(name, editTopicValue)) {
+                            setEditingTopic(null);
+                            setEditTopicValue("");
+                          }
                         }
-                      } else if (manage === "term") {
-                        setTerms((p) => p.filter((x) => x !== name));
-                        setWords((p) => p.filter((w) => w.term !== name));
-                        if (term === name) setTerm(ALL);
-                      } else {
-                        setTopics((p) => p.filter((x) => x !== name));
-                        setWords((p) => p.filter((w) => w.topic !== name));
-                        if (topic === name) setTopic(ALL);
-                      }
-                    }}
-                    className="text-xs font-medium text-destructive/70 hover:text-destructive"
-                  >
-                    Delete
-                  </button>
+                        if (e.key === "Escape") {
+                          setEditingTopic(null);
+                          setEditTopicValue("");
+                        }
+                      }}
+                      className="min-w-0 flex-1 rounded-lg bg-surface px-3 py-1.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate">{name}</span>
+                  )}
+                  <div className="flex shrink-0 gap-3">
+                    {manage === "topic" ? (
+                      editingTopic === name ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (renameTopic(name, editTopicValue)) {
+                                setEditingTopic(null);
+                                setEditTopicValue("");
+                              }
+                            }}
+                            className="text-xs font-medium text-foreground hover:opacity-80"
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingTopic(null);
+                              setEditTopicValue("");
+                            }}
+                            className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingTopic(name);
+                            setEditTopicValue(name);
+                          }}
+                          className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          Edit
+                        </button>
+                      )
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (manage === "year") {
+                          setYears((p) => p.filter((x) => x !== name));
+                          setWords((p) => p.filter((w) => w.year !== name));
+                          if (year === name) {
+                            const left = years.filter((x) => x !== name);
+                            setYear(left[0] ?? "");
+                          }
+                        } else if (manage === "term") {
+                          setTerms((p) => p.filter((x) => x !== name));
+                          setWords((p) => p.filter((w) => w.term !== name));
+                          if (term === name) setTerm(ALL);
+                        } else {
+                          setTopics((p) => p.filter((x) => x !== name));
+                          setWords((p) => p.filter((w) => w.topic !== name));
+                          if (topic === name) setTopic(ALL);
+                          if (editingTopic === name) {
+                            setEditingTopic(null);
+                            setEditTopicValue("");
+                          }
+                          setOpenTopics((prev) =>
+                            prev.filter((key) => !key.endsWith(`::${name}`)),
+                          );
+                        }
+                      }}
+                      className="text-xs font-medium text-destructive/70 hover:text-destructive"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </li>
               ),
             )}
