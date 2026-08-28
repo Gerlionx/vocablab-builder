@@ -31,6 +31,11 @@ describe("winnerIndex pin boundaries", () => {
     assert.ok(Math.abs(pegOffsetLocal(angle, n) + KISS_DEG) < 1e-6);
   });
 
+  it("wraps to the first slice when kissing the zero-degree peg", () => {
+    const n = 4;
+    assert.equal(winnerIndex(angleForLocal(360 - 1), n), 0);
+  });
+
   it("selects the slice that starts on an exact peg", () => {
     const n = 5;
     const step = 360 / n;
