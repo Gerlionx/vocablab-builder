@@ -15,6 +15,11 @@ export function pointsForSkip(settings: WheelSettings): number {
   return settings.pointsSkip;
 }
 
-export function pointsForAnswer(settings: WheelSettings, revealsUsed: number): number {
+export function pointsForAnswer(
+  settings: WheelSettings,
+  revealsUsed: number,
+  fullyRevealed = false,
+): number {
+  if (fullyRevealed) return 0;
   return revealsUsed > 0 ? pointsForRevealed(settings) : pointsForDirect(settings);
 }

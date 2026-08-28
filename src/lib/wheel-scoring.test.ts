@@ -19,8 +19,13 @@ describe("wheel scoring", () => {
     assert.equal(pointsForAnswer(settings, 0), 3);
   });
 
-  it("awards fewer points after reveal hints", () => {
+  it("awards fewer points after one reveal hint", () => {
     assert.equal(pointsForAnswer(settings, 1), 1);
+  });
+
+  it("awards zero when hints fully revealed the answer", () => {
+    assert.equal(pointsForAnswer(settings, 2, true), 0);
+    assert.equal(pointsForAnswer(settings, 1, true), 0);
   });
 
   it("defaults skip to zero points", () => {

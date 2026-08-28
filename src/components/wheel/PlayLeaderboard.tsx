@@ -142,38 +142,38 @@ function ScoreRow({
 
   return (
     <li
-      className={`relative flex list-none items-center justify-between gap-3 ${entering ? "vocablab-leaderboard-enter" : ""}`}
+      className={`relative list-none ${entering ? "vocablab-leaderboard-enter" : ""}`}
       aria-label={`${label}, ${score} points`}
     >
       <span
-        className="min-w-0 truncate rounded-full px-2.5 py-1 font-kids text-sm font-semibold"
+        className="inline-flex w-full min-w-0 items-center justify-between gap-3 rounded-full px-3 py-1.5 font-kids text-sm font-semibold shadow-sm"
         style={{ background: fill, color: ink }}
       >
-        {label}
-      </span>
-      <div className="flex shrink-0 flex-col items-end">
+        <span className="min-w-0 truncate">{label}</span>
         <span
-          className="font-kids text-2xl font-semibold tabular-nums leading-none text-foreground"
+          className="shrink-0 tabular-nums leading-none"
           style={{
+            fontSize: "clamp(1.35rem, 2.8vw, 1.75rem)",
             animation: burst ? "vocablab-score-burst 0.45s ease" : undefined,
           }}
         >
           {score}
         </span>
-        {clock != null ? (
-          <span
-            className="mt-0.5 font-kids text-sm tabular-nums text-muted-foreground"
-            style={{
-              animation: urgent ? "vocablab-timer-urgent 0.5s ease-in-out infinite" : undefined,
-            }}
-          >
-            {formatClock(clock)}
-          </span>
-        ) : null}
-      </div>
+      </span>
+      {clock != null ? (
+        <span
+          className="mt-1 block text-right font-kids text-sm tabular-nums"
+          style={{
+            color: ink,
+            animation: urgent ? "vocablab-timer-urgent 0.5s ease-in-out infinite" : undefined,
+          }}
+        >
+          {formatClock(clock)}
+        </span>
+      ) : null}
       {plus != null ? (
         <span
-          className="pointer-events-none absolute right-0 top-0 font-kids text-xl font-semibold"
+          className="pointer-events-none absolute right-2 top-0 font-kids text-xl font-semibold"
           style={{
             color: fill,
             animation: "vocablab-float-plus 0.7s ease forwards",

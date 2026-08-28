@@ -372,6 +372,33 @@
   }
 }
 
+@keyframes vocablab-answer-reveal {
+  0% {
+    transform: translateY(1.5rem) scale(0.88);
+    opacity: 0;
+    filter: blur(6px);
+  }
+  55% {
+    transform: translateY(-0.25rem) scale(1.04);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes vocablab-result-wash {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 @keyframes vocablab-leaderboard-enter {
   0% {
     transform: translateX(-1.25rem) scale(0.94);

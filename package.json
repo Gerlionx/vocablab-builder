@@ -11,7 +11,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --experimental-strip-types --test src/lib/wheel-answer-reveal.test.ts src/lib/wheel-scoring.test.ts"
+    "test": "node --experimental-strip-types --test src/lib/wheel-answer-reveal.test.ts src/lib/wheel-math.test.ts src/lib/wheel-scoring.test.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
