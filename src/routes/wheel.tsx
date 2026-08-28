@@ -116,7 +116,11 @@ function WheelPage() {
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
   const [scoreBurst, setScoreBurst] = useState<TeamId | null>(null);
-  const [scoreFly, setScoreFly] = useState<{ target: TeamId; value: number } | null>(null);
+  const [scoreFly, setScoreFly] = useState<{
+    target: TeamId;
+    value: number;
+    player: string;
+  } | null>(null);
   const [tossWinner, setTossWinner] = useState<TeamId>(0);
   const [usedWordIds, setUsedWordIds] = useState<Set<string>>(new Set());
 
@@ -669,7 +673,7 @@ function WheelPage() {
       next[picked.team] = (next[picked.team] ?? 0) + pts;
       setScores(next);
       setScoreBurst(picked.team);
-      setScoreFly({ target: picked.team, value: pts });
+      setScoreFly({ target: picked.team, value: pts, player: picked.name });
       window.setTimeout(() => setScoreBurst(null), 500);
       window.setTimeout(() => setScoreFly(null), 700);
     } else {
@@ -678,7 +682,7 @@ function WheelPage() {
         return updated;
       });
       setScoreBurst(0);
-      setScoreFly({ target: 0, value: pts });
+      setScoreFly({ target: 0, value: pts, player: picked.name });
       window.setTimeout(() => setScoreBurst(null), 500);
       window.setTimeout(() => setScoreFly(null), 700);
     }
@@ -784,7 +788,7 @@ function WheelPage() {
             burst={scoreBurst}
             plusFly={scoreFly?.target ?? null}
             plusValue={scoreFly?.value ?? 0}
-            activePlayer={activeName}
+            activePlayer={scoreFly?.player ?? activeName}
           />
         </aside>
       ) : null}
