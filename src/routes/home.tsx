@@ -31,12 +31,9 @@ function HomePage() {
           className="grid size-40 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-4 focus:ring-offset-background active:scale-95"
         >
           <span className="text-sm font-medium uppercase tracking-[0.25em]">
-            Create
+            Activity
           </span>
         </Link>
-        <p className="mt-10 max-w-xs text-center text-sm text-muted-foreground">
-          Everything else can wait. Pick an activity when you are ready.
-        </p>
       </main>
     </AppChrome>
   );

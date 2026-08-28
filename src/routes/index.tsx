@@ -51,7 +51,7 @@ function LoginPage() {
             <input
               id="email"
               type="email"
-              defaultValue="marie.claire@school.ac.uk"
+              defaultValue="dorina.crisan@gmail.com"
               className="w-full rounded-xl bg-background px-4 py-2.5 text-sm ring-1 ring-input transition-shadow focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -66,7 +66,7 @@ function LoginPage() {
             <input
               id="password"
               type="password"
-              defaultValue="password"
+              defaultValue="vocablab"
               className="w-full rounded-xl bg-background px-4 py-2.5 text-sm ring-1 ring-input transition-shadow focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>

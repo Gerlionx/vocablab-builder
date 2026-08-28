@@ -31,9 +31,9 @@ function CreatePage() {
         >
           &larr; Back to home
         </Link>
-        <h1 className="text-4xl font-medium tracking-tight">Create</h1>
+        <h1 className="text-4xl font-medium tracking-tight">Activity</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Choose an activity for the board. Prep lessons under Game settings first.
+          Choose an activity for the board. Prep lessons under Create first.
         </p>
 
         <div className="mt-12 max-w-sm">
