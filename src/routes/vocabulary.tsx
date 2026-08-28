@@ -64,8 +64,8 @@ function VocabularyPage() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmYear, setConfirmYear] = useState(false);
   const [manage, setManage] = useState<null | "year" | "term" | "topic">(null);
-  const [editingTopic, setEditingTopic] = useState<string | null>(null);
-  const [editTopicValue, setEditTopicValue] = useState("");
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [editNameValue, setEditNameValue] = useState("");
   const [openTerms, setOpenTerms] = useState<string[]>([]);
   const [openTopics, setOpenTopics] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
@@ -120,16 +120,50 @@ function VocabularyPage() {
     return `${termName}::${topicName}`;
   }
 
-  function renameTopic(from: string, to: string) {
+  function renameManagedItem(
+    kind: "year" | "term" | "topic",
+    from: string,
+    to: string,
+  ): boolean {
     const trimmed = to.trim();
-    if (!trimmed || trimmed === from || topics.includes(trimmed)) return false;
+    if (!trimmed || trimmed === from) return false;
+
+    if (kind === "year") {
+      if (years.includes(trimmed)) return false;
+      setYears((prev) => prev.map((name) => (name === from ? trimmed : name)));
+      setWords((prev) =>
+        prev.map((word) => (word.year === from ? { ...word, year: trimmed } : word)),
+      );
+      if (year === from) setYear(trimmed);
+      return true;
+    }
+
+    if (kind === "term") {
+      if (terms.includes(trimmed)) return false;
+      setTerms((prev) => prev.map((name) => (name === from ? trimmed : name)));
+      setWords((prev) =>
+        prev.map((word) => (word.term === from ? { ...word, term: trimmed } : word)),
+      );
+      if (term === from) setTerm(trimmed);
+      setOpenTerms((prev) => prev.map((name) => (name === from ? trimmed : name)));
+      setOpenTopics((prev) =>
+        prev.map((key) =>
+          key.startsWith(`${from}::`) ? key.replace(`${from}::`, `${trimmed}::`) : key,
+        ),
+      );
+      return true;
+    }
+
+    if (topics.includes(trimmed)) return false;
     setTopics((prev) => prev.map((name) => (name === from ? trimmed : name)));
     setWords((prev) =>
       prev.map((word) => (word.topic === from ? { ...word, topic: trimmed } : word)),
     );
     if (topic === from) setTopic(trimmed);
     setOpenTopics((prev) =>
-      prev.map((key) => (key.endsWith(`::${from}`) ? key.replace(`::${from}`, `::${trimmed}`) : key)),
+      prev.map((key) =>
+        key.endsWith(`::${from}`) ? key.replace(`::${from}`, `::${trimmed}`) : key,
+      ),
     );
     return true;
   }
@@ -483,8 +517,8 @@ function VocabularyPage() {
           onClose={() => {
             setManage(null);
             setNewName("");
-            setEditingTopic(null);
-            setEditTopicValue("");
+            setEditingName(null);
+            setEditNameValue("");
           }}
         >
           <ul className="mb-6">
@@ -494,22 +528,22 @@ function VocabularyPage() {
                   key={name}
                   className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm"
                 >
-                  {manage === "topic" && editingTopic === name ? (
+                  {editingName === name ? (
                     <input
                       autoFocus
-                      value={editTopicValue}
-                      onChange={(e) => setEditTopicValue(e.target.value)}
+                      value={editNameValue}
+                      onChange={(e) => setEditNameValue(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           e.preventDefault();
-                          if (renameTopic(name, editTopicValue)) {
-                            setEditingTopic(null);
-                            setEditTopicValue("");
+                          if (manage && renameManagedItem(manage, name, editNameValue)) {
+                            setEditingName(null);
+                            setEditNameValue("");
                           }
                         }
                         if (e.key === "Escape") {
-                          setEditingTopic(null);
-                          setEditTopicValue("");
+                          setEditingName(null);
+                          setEditNameValue("");
                         }
                       }}
                       className="min-w-0 flex-1 rounded-lg bg-surface px-3 py-1.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
@@ -518,45 +552,43 @@ function VocabularyPage() {
                     <span className="min-w-0 flex-1 truncate">{name}</span>
                   )}
                   <div className="flex shrink-0 gap-3">
-                    {manage === "topic" ? (
-                      editingTopic === name ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (renameTopic(name, editTopicValue)) {
-                                setEditingTopic(null);
-                                setEditTopicValue("");
-                              }
-                            }}
-                            className="text-xs font-medium text-foreground hover:opacity-80"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingTopic(null);
-                              setEditTopicValue("");
-                            }}
-                            className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                          >
-                            Cancel
-                          </button>
-                        </>
-                      ) : (
+                    {editingName === name ? (
+                      <>
                         <button
                           type="button"
                           onClick={() => {
-                            setEditingTopic(name);
-                            setEditTopicValue(name);
+                            if (manage && renameManagedItem(manage, name, editNameValue)) {
+                              setEditingName(null);
+                              setEditNameValue("");
+                            }
+                          }}
+                          className="text-xs font-medium text-foreground hover:opacity-80"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingName(null);
+                            setEditNameValue("");
                           }}
                           className="text-xs font-medium text-muted-foreground hover:text-foreground"
                         >
-                          Edit
+                          Cancel
                         </button>
-                      )
-                    ) : null}
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingName(name);
+                          setEditNameValue(name);
+                        }}
+                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        Edit
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => {
@@ -571,17 +603,21 @@ function VocabularyPage() {
                           setTerms((p) => p.filter((x) => x !== name));
                           setWords((p) => p.filter((w) => w.term !== name));
                           if (term === name) setTerm(ALL);
+                          setOpenTerms((prev) => prev.filter((key) => key !== name));
+                          setOpenTopics((prev) =>
+                            prev.filter((key) => !key.startsWith(`${name}::`)),
+                          );
                         } else {
                           setTopics((p) => p.filter((x) => x !== name));
                           setWords((p) => p.filter((w) => w.topic !== name));
                           if (topic === name) setTopic(ALL);
-                          if (editingTopic === name) {
-                            setEditingTopic(null);
-                            setEditTopicValue("");
-                          }
                           setOpenTopics((prev) =>
                             prev.filter((key) => !key.endsWith(`::${name}`)),
                           );
+                        }
+                        if (editingName === name) {
+                          setEditingName(null);
+                          setEditNameValue("");
                         }
                       }}
                       className="text-xs font-medium text-destructive/70 hover:text-destructive"
