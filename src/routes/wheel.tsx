@@ -58,7 +58,14 @@ export const Route = createFileRoute("/wheel")({
 
 type TeamId = number;
 type Scene =
-  "toss" | "wheel" | "spinning" | "landed" | "exiting" | "question" | "entering" | "winner";
+  | "toss"
+  | "wheel"
+  | "spinning"
+  | "landed"
+  | "exiting"
+  | "question"
+  | "entering"
+  | "winner";
 type Prompt = { word: Word; askFrench: boolean };
 type Player = { name: string; team: TeamId };
 
@@ -109,7 +116,7 @@ function WheelPage() {
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
   const [scoreBurst, setScoreBurst] = useState<TeamId | null>(null);
-  const [plusFly, setPlusFly] = useState<TeamId | null>(null);
+  const [scoreFly, setScoreFly] = useState<{ target: TeamId; value: number } | null>(null);
   const [tossWinner, setTossWinner] = useState<TeamId>(0);
   const [usedWordIds, setUsedWordIds] = useState<Set<string>>(new Set());
 
@@ -662,18 +669,18 @@ function WheelPage() {
       next[picked.team] = (next[picked.team] ?? 0) + pts;
       setScores(next);
       setScoreBurst(picked.team);
-      setPlusFly(picked.team);
+      setScoreFly({ target: picked.team, value: pts });
       window.setTimeout(() => setScoreBurst(null), 500);
-      window.setTimeout(() => setPlusFly(null), 700);
+      window.setTimeout(() => setScoreFly(null), 700);
     } else {
       setPlayerScores((prev) => {
         const updated = { ...prev, [picked.name]: (prev[picked.name] ?? 0) + pts };
         return updated;
       });
       setScoreBurst(0);
-      setPlusFly(0);
+      setScoreFly({ target: 0, value: pts });
       window.setTimeout(() => setScoreBurst(null), 500);
-      window.setTimeout(() => setPlusFly(null), 700);
+      window.setTimeout(() => setScoreFly(null), 700);
     }
     return next;
   }
@@ -705,7 +712,7 @@ function WheelPage() {
       if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
       if (e.code === "Space") {
         e.preventDefault();
-        if (started && !panelOpen && (scene === "wheel" || scene === "landed")) spin();
+        if (started && !panelOpen && scene === "wheel") spin();
       }
       if (scene === "landed") {
         if (e.key === "p" || e.key === "P") playLanded();
@@ -729,12 +736,8 @@ function WheelPage() {
       : "How do you say this in French?"
     : null;
 
-  const pendingPoints = answerPoints();
-  const activeName =
-    scene === "question" || scene === "landed" ? (picked?.name ?? null) : null;
-  const hintAvailable = answerText
-    ? canRevealMore(revealStep, buildRevealPlan(answerText))
-    : false;
+  const activeName = scene === "question" || scene === "landed" ? (picked?.name ?? null) : null;
+  const hintAvailable = answerText ? canRevealMore(revealStep, buildRevealPlan(answerText)) : false;
 
   const activePalette = palettes[picked?.team ?? turn] ?? palettes[0]!;
 
@@ -779,8 +782,8 @@ function WheelPage() {
             timeMatch={Boolean(timeMatch)}
             turn={turn}
             burst={scoreBurst}
-            plusFly={plusFly}
-            plusValue={pendingPoints > 0 ? pendingPoints : settings.pointsCorrect}
+            plusFly={scoreFly?.target ?? null}
+            plusValue={scoreFly?.value ?? 0}
             activePlayer={activeName}
           />
         </aside>
