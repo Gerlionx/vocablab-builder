@@ -1,5 +1,6 @@
 import { YEAR8_WORDS } from "./year8-vocab";
 import { YEAR9_WORDS } from "./year9-vocab";
+import { YEAR9_MORE_ABLE_WORDS } from "./year9-more-able-vocab";
 
 export type Difficulty = "Low" | "Medium" | "High";
 
@@ -34,7 +35,7 @@ const w = (
   ...(image ? { image } : {}),
 });
 
-export const YEARS = ["Year 7", "Year 8", "Year 9"];
+export const YEARS = ["Year 7", "Year 8", "Year 9 Mixed Ability", "Year 9 More Able"];
 export const TERMS = ["Term 1", "Term 2", "Term 3", "Term 4", "Term 5", "Term 6"];
 export const TOPICS = [
   "A day at school",
@@ -546,6 +547,7 @@ export const SEED_WORDS: Word[] = [
 
   ...YEAR8_WORDS,
   ...YEAR9_WORDS,
+  ...YEAR9_MORE_ABLE_WORDS,
 ];
 
 export const USE_DEMO_NAMES = true;
