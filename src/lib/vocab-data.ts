@@ -1,3 +1,5 @@
+import { YEAR8_WORDS } from "./year8-vocab";
+
 export type Difficulty = "Low" | "Medium" | "High";
 
 export type Word = {
@@ -8,6 +10,7 @@ export type Word = {
   difficulty: Difficulty;
   french: string;
   english: string;
+  image?: string;
 };
 
 let counter = 0;
@@ -18,6 +21,7 @@ const w = (
   difficulty: Difficulty,
   french: string,
   english: string,
+  image?: string,
 ): Word => ({
   id: `w${++counter}`,
   year,
@@ -26,6 +30,7 @@ const w = (
   difficulty,
   french,
   english,
+  ...(image ? { image } : {}),
 });
 
 export const YEARS = ["Year 7", "Year 8", "Year 9"];
@@ -45,8 +50,24 @@ export const TOPICS = [
   "Months",
   "Numbers",
   "Opinions and reasons",
+  "Opinions on catacombs",
   "Personality",
   "Physical description",
+  "Physical description recap",
+  "Adverbs of frequency",
+  "Different holidays",
+  "Film genres",
+  "Film opinions",
+  "Holidays",
+  "In Paris past tense",
+  "Irregular past tense",
+  "Monuments of Paris",
+  "Music",
+  "Relationships",
+  "Seasons",
+  "Sport",
+  "Together we",
+  "Weather",
   "School subjects",
   "The time",
   "The uniform",
@@ -513,17 +534,7 @@ export const SEED_WORDS: Word[] = [
   w("Year 7", "Term 6", "Future tense", "Medium", "je vais porter", "I am going to wear"),
   w("Year 7", "Term 6", "Future tense", "High", "ça sera", "it will be"),
 
-  // Year 8 — a small slice so year switching feels real
-  w("Year 8", "Term 1", "Free time", "Low", "le week-end", "the weekend"),
-  w("Year 8", "Term 1", "Free time", "Medium", "Je fais du vélo", "I go cycling"),
-  w(
-    "Year 8",
-    "Term 1",
-    "Free time",
-    "High",
-    "Si j'avais le temps, je lirais plus",
-    "If I had the time, I would read more",
-  ),
+  ...YEAR8_WORDS,
 ];
 
 export const USE_DEMO_NAMES = true;

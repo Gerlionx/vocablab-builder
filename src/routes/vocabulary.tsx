@@ -2,12 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppChrome } from "@/components/AppChrome";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
   DIFFICULTIES,
   SEED_WORDS,
   TERMS,
@@ -25,13 +19,13 @@ export const Route = createFileRoute("/vocabulary")({
       {
         name: "description",
         content:
-          "Edit French and English vocabulary by year, term, topic and difficulty in one calm, readable list.",
+          "Browse and edit French vocabulary by year and term in a booklet-style layout.",
       },
       { property: "og:title", content: "Vocabulary — Vocablab" },
       {
         property: "og:description",
         content:
-          "Edit French and English vocabulary by year, term, topic and difficulty in one calm, readable list.",
+          "Browse and edit French vocabulary by year and term in a booklet-style layout.",
       },
     ],
   }),
@@ -48,6 +42,7 @@ type Draft = {
   difficulty: Difficulty;
   french: string;
   english: string;
+  image?: string;
 };
 
 function VocabularyPage() {
@@ -57,8 +52,7 @@ function VocabularyPage() {
   const [topics, setTopics] = useState<string[]>(TOPICS);
 
   const [year, setYear] = useState("Year 7");
-  const [term, setTerm] = useState(ALL);
-  const [topic, setTopic] = useState(ALL);
+  const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState(ALL);
 
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -66,8 +60,6 @@ function VocabularyPage() {
   const [manage, setManage] = useState<null | "year" | "term" | "topic">(null);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
-  const [openTerms, setOpenTerms] = useState<string[]>([]);
-  const [openTopics, setOpenTopics] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [download, setDownload] = useState(false);
   const [upload, setUpload] = useState<null | { year: string; exists: boolean }>(
@@ -75,50 +67,43 @@ function VocabularyPage() {
   );
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const filtered = useMemo(
+  const yearWords = useMemo(
     () =>
       words.filter(
         (word) =>
           word.year === year &&
-          (term === ALL || word.term === term) &&
-          (topic === ALL || word.topic === topic) &&
           (difficulty === ALL || word.difficulty === difficulty),
       ),
-    [words, year, term, topic, difficulty],
+    [words, year, difficulty],
   );
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, Map<string, Word[]>>();
-    for (const t of terms) {
-      const inTerm = filtered.filter((word) => word.term === t);
-      if (!inTerm.length) continue;
-      const byTopic = new Map<string, Word[]>();
-      for (const tp of topics) {
-        const list = inTerm.filter((word) => word.topic === tp);
-        if (list.length) byTopic.set(tp, list);
-      }
-      map.set(t, byTopic);
+  const termCards = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const word of yearWords) {
+      counts.set(word.term, (counts.get(word.term) ?? 0) + 1);
     }
-    return map;
-  }, [filtered, terms, topics]);
+    return terms
+      .filter((termName) => counts.has(termName))
+      .map((termName) => ({ term: termName, count: counts.get(termName)! }));
+  }, [yearWords, terms]);
+
+  const bookletTopics = useMemo(() => {
+    if (!selectedTerm) return [];
+    const inTerm = yearWords.filter((word) => word.term === selectedTerm);
+    const byTopic = new Map<string, Word[]>();
+    for (const word of inTerm) {
+      const list = byTopic.get(word.topic) ?? [];
+      list.push(word);
+      byTopic.set(word.topic, list);
+    }
+    return topics
+      .filter((topicName) => byTopic.has(topicName))
+      .map((topicName) => ({ topic: topicName, words: byTopic.get(topicName)! }));
+  }, [yearWords, selectedTerm, topics]);
 
   useEffect(() => {
-    if (term !== ALL) {
-      setOpenTerms((prev) => (prev.includes(term) ? prev : [...prev, term]));
-    }
-    if (topic !== ALL) {
-      for (const [termName, byTopic] of grouped) {
-        if (!byTopic.has(topic)) continue;
-        const topicKey = `${termName}::${topic}`;
-        setOpenTerms((prev) => (prev.includes(termName) ? prev : [...prev, termName]));
-        setOpenTopics((prev) => (prev.includes(topicKey) ? prev : [...prev, topicKey]));
-      }
-    }
-  }, [term, topic, grouped]);
-
-  function topicKey(termName: string, topicName: string) {
-    return `${termName}::${topicName}`;
-  }
+    setSelectedTerm(null);
+  }, [year]);
 
   function renameManagedItem(
     kind: "year" | "term" | "topic",
@@ -144,13 +129,7 @@ function VocabularyPage() {
       setWords((prev) =>
         prev.map((word) => (word.term === from ? { ...word, term: trimmed } : word)),
       );
-      if (term === from) setTerm(trimmed);
-      setOpenTerms((prev) => prev.map((name) => (name === from ? trimmed : name)));
-      setOpenTopics((prev) =>
-        prev.map((key) =>
-          key.startsWith(`${from}::`) ? key.replace(`${from}::`, `${trimmed}::`) : key,
-        ),
-      );
+      if (selectedTerm === from) setSelectedTerm(trimmed);
       return true;
     }
 
@@ -159,23 +138,22 @@ function VocabularyPage() {
     setWords((prev) =>
       prev.map((word) => (word.topic === from ? { ...word, topic: trimmed } : word)),
     );
-    if (topic === from) setTopic(trimmed);
-    setOpenTopics((prev) =>
-      prev.map((key) =>
-        key.endsWith(`::${from}`) ? key.replace(`::${from}`, `::${trimmed}`) : key,
-      ),
-    );
     return true;
   }
 
   function saveDraft(d: Draft) {
+    const image = d.image?.trim() || undefined;
+    const payload = { ...d, image };
     if (d.id) {
       setWords((prev) =>
-        prev.map((w) => (w.id === d.id ? ({ ...w, ...d, id: d.id! } as Word) : w)),
+        prev.map((w) =>
+          w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w,
+        ),
       );
     } else {
-      setWords((prev) => [...prev, { ...d, id: nextId() } as Word]);
+      setWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
       if (d.year !== year) setYear(d.year);
+      if (d.term) setSelectedTerm(d.term);
     }
     setDraft(null);
   }
@@ -217,18 +195,6 @@ function VocabularyPage() {
           <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
             <Select label="Year" value={year} onChange={setYear} options={years} />
             <Select
-              label="Term"
-              value={term}
-              onChange={setTerm}
-              options={[ALL, ...terms]}
-            />
-            <Select
-              label="Topic"
-              value={topic}
-              onChange={setTopic}
-              options={[ALL, ...topics]}
-            />
-            <Select
               label="Difficulty"
               value={difficulty}
               onChange={setDifficulty}
@@ -239,8 +205,8 @@ function VocabularyPage() {
               onClick={() =>
                 setDraft({
                   year,
-                  term: term === ALL ? terms[0] : term,
-                  topic: topic === ALL ? topics[0] : topic,
+                  term: selectedTerm ?? terms[0] ?? "Term 1",
+                  topic: topics[0] ?? "Greetings",
                   difficulty: "Medium",
                   french: "",
                   english: "",
@@ -261,30 +227,6 @@ function VocabularyPage() {
               <span className="text-foreground">*</span> = High
             </span>
             <span className="ml-auto flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenTerms([...grouped.keys()]);
-                  setOpenTopics(
-                    [...grouped.entries()].flatMap(([termName, byTopic]) =>
-                      [...byTopic.keys()].map((topicName) => topicKey(termName, topicName)),
-                    ),
-                  );
-                }}
-                className="underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Expand all
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpenTerms([]);
-                  setOpenTopics([]);
-                }}
-                className="underline-offset-4 hover:text-foreground hover:underline"
-              >
-                Collapse all
-              </button>
               <button
                 type="button"
                 onClick={() => setManage("year")}
@@ -310,116 +252,88 @@ function VocabularyPage() {
           </div>
         </div>
 
-        {/* List */}
-        {grouped.size === 0 ? (
+        {selectedTerm ? (
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => setSelectedTerm(null)}
+              className="mb-6 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              &larr; All terms
+            </button>
+
+            <article className="rounded-3xl bg-surface/80 px-8 py-10 shadow-sm ring-1 ring-border sm:px-12">
+              <header className="border-b border-line pb-6 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+                  {year}
+                </p>
+                <h2 className="mt-2 font-serif text-3xl font-medium tracking-tight">
+                  {selectedTerm}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {bookletTopics.reduce((count, section) => count + section.words.length, 0)}{" "}
+                  words
+                </p>
+              </header>
+
+              {bookletTopics.length === 0 ? (
+                <p className="mt-10 text-center text-sm text-muted-foreground">
+                  No words match this filter.
+                </p>
+              ) : (
+                <div className="mt-10 space-y-10">
+                  {bookletTopics.map(({ topic: topicName, words: list }) => (
+                    <section key={topicName}>
+                      <h3 className="border-b border-line pb-2 font-serif text-xl font-semibold tracking-tight">
+                        {topicName}
+                      </h3>
+                      <ul className="mt-4">
+                        {list.map((item) => (
+                          <VocabRow
+                            key={item.id}
+                            item={item}
+                            onEdit={() => setDraft({ ...item })}
+                            onDelete={() =>
+                              setWords((prev) => prev.filter((x) => x.id !== item.id))
+                            }
+                          />
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </article>
+          </div>
+        ) : termCards.length === 0 ? (
           <div className="mt-20 rounded-3xl bg-surface/60 px-8 py-16 text-center ring-1 ring-border">
             <p className="text-lg font-medium">Nothing here yet</p>
             <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-              No words match these filters. Try another term or topic, or add
-              your first word for {year}.
+              No words match these filters. Try another difficulty, or add your
+              first word for {year}.
             </p>
           </div>
         ) : (
-          <Accordion
-            type="multiple"
-            value={openTerms}
-            onValueChange={setOpenTerms}
-            className="mt-10 space-y-2"
-          >
-            {[...grouped.entries()].map(([termName, byTopic]) => {
-              const termWordCount = [...byTopic.values()].reduce(
-                (count, list) => count + list.length,
-                0,
-              );
-              return (
-                <AccordionItem
-                  key={termName}
-                  value={termName}
-                  className="rounded-2xl border border-line px-4"
-                >
-                  <AccordionTrigger className="py-4 hover:no-underline">
-                    <span className="flex min-w-0 items-baseline gap-2 text-left">
-                      <span className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                        {year} · {termName}
-                      </span>
-                      <span className="text-xs font-normal text-muted-foreground">
-                        ({termWordCount})
-                      </span>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent className="pb-4">
-                    <Accordion
-                      type="multiple"
-                      value={openTopics}
-                      onValueChange={setOpenTopics}
-                      className="space-y-1"
-                    >
-                      {[...byTopic.entries()].map(([topicName, list]) => (
-                        <AccordionItem
-                          key={topicKey(termName, topicName)}
-                          value={topicKey(termName, topicName)}
-                          className="border-none"
-                        >
-                          <AccordionTrigger className="py-3 text-base font-semibold tracking-tight hover:no-underline">
-                            <span className="flex min-w-0 items-baseline gap-2 text-left">
-                              <span>{topicName}</span>
-                              <span className="text-xs font-normal text-muted-foreground">
-                                ({list.length})
-                              </span>
-                            </span>
-                          </AccordionTrigger>
-                          <AccordionContent className="pb-2">
-                            <ul>
-                              {list.map((item) => (
-                                <li
-                                  key={item.id}
-                                  className="group flex items-center justify-between gap-4 border-b border-line py-3"
-                                >
-                                  <div
-                                    className={`flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-1 ${
-                                      item.difficulty === "Low"
-                                        ? "font-semibold text-foreground"
-                                        : "font-normal text-muted-foreground"
-                                    }`}
-                                  >
-                                    <span className="font-serif text-lg italic">
-                                      {item.difficulty === "High" ? "* " : ""}
-                                      {item.french}
-                                    </span>
-                                    <span className="text-base">{item.english}</span>
-                                  </div>
-                                  <div className="flex shrink-0 gap-3 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-                                    <button
-                                      type="button"
-                                      onClick={() => setDraft({ ...item })}
-                                      className="text-xs font-medium text-muted-foreground hover:text-foreground"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setWords((prev) =>
-                                          prev.filter((x) => x.id !== item.id),
-                                        )
-                                      }
-                                      className="text-xs font-medium text-destructive/70 hover:text-destructive"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
-                    </Accordion>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {termCards.map(({ term: termName, count }) => (
+              <button
+                key={termName}
+                type="button"
+                onClick={() => setSelectedTerm(termName)}
+                className="group rounded-2xl border border-line bg-surface/60 px-6 py-8 text-left transition-colors hover:border-foreground/20 hover:bg-surface active:scale-[0.99]"
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                  {year}
+                </p>
+                <p className="mt-2 text-2xl font-medium tracking-tight group-hover:text-foreground">
+                  {termName}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {count} {count === 1 ? "word" : "words"}
+                </p>
+              </button>
+            ))}
+          </div>
         )}
 
         <div className="mt-20 border-t border-line pt-6">
@@ -489,6 +403,14 @@ function VocabularyPage() {
                 value={draft.english}
                 onChange={(e) => setDraft({ ...draft, english: e.target.value })}
                 className="w-full rounded-xl bg-surface px-4 py-2.5 text-base ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </Field>
+            <Field label="Image (optional)">
+              <input
+                value={draft.image ?? ""}
+                onChange={(e) => setDraft({ ...draft, image: e.target.value })}
+                placeholder="/vocab-images/year8/eiffel-tower.jpg"
+                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
             <div className="flex justify-end gap-2 pt-2">
@@ -602,18 +524,10 @@ function VocabularyPage() {
                         } else if (manage === "term") {
                           setTerms((p) => p.filter((x) => x !== name));
                           setWords((p) => p.filter((w) => w.term !== name));
-                          if (term === name) setTerm(ALL);
-                          setOpenTerms((prev) => prev.filter((key) => key !== name));
-                          setOpenTopics((prev) =>
-                            prev.filter((key) => !key.startsWith(`${name}::`)),
-                          );
+                          if (selectedTerm === name) setSelectedTerm(null);
                         } else {
                           setTopics((p) => p.filter((x) => x !== name));
                           setWords((p) => p.filter((w) => w.topic !== name));
-                          if (topic === name) setTopic(ALL);
-                          setOpenTopics((prev) =>
-                            prev.filter((key) => !key.endsWith(`::${name}`)),
-                          );
                         }
                         if (editingName === name) {
                           setEditingName(null);
@@ -752,6 +666,59 @@ function VocabularyPage() {
         </Modal>
       ) : null}
     </AppChrome>
+  );
+}
+
+function VocabRow({
+  item,
+  onEdit,
+  onDelete,
+}: {
+  item: Word;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <li className="group flex items-start justify-between gap-4 border-b border-line py-3 last:border-b-0">
+      <div className="flex min-w-0 flex-1 gap-4">
+        {item.image ? (
+          <img
+            src={item.image}
+            alt=""
+            className="mt-0.5 h-16 w-16 shrink-0 rounded-lg object-cover ring-1 ring-border"
+          />
+        ) : null}
+        <div
+          className={`flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-1 ${
+            item.difficulty === "Low"
+              ? "font-semibold text-foreground"
+              : "font-normal text-muted-foreground"
+          }`}
+        >
+          <span className="font-serif text-lg italic">
+            {item.difficulty === "High" ? "* " : ""}
+            {item.french}
+          </span>
+          <span className="text-base">{item.english}</span>
+        </div>
+      </div>
+      <div className="flex shrink-0 gap-3 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          className="text-xs font-medium text-destructive/70 hover:text-destructive"
+        >
+          Delete
+        </button>
+      </div>
+    </li>
   );
 }
 
