@@ -1,4 +1,5 @@
 import { YEAR8_WORDS } from "./year8-vocab";
+import { YEAR9_WORDS } from "./year9-vocab";
 
 export type Difficulty = "Low" | "Medium" | "High";
 
@@ -71,6 +72,15 @@ export const TOPICS = [
   "School subjects",
   "The time",
   "The uniform",
+  "Identity",
+  "Opinions",
+  "School life",
+  "Christmas",
+  "Celebrations",
+  "Past tense",
+  "At the restaurant",
+  "Leisure",
+  "Fashion",
 ];
 export const DIFFICULTIES: Difficulty[] = ["Low", "Medium", "High"];
 
@@ -535,6 +545,7 @@ export const SEED_WORDS: Word[] = [
   w("Year 7", "Term 6", "Future tense", "High", "ça sera", "it will be"),
 
   ...YEAR8_WORDS,
+  ...YEAR9_WORDS,
 ];
 
 export const USE_DEMO_NAMES = true;
