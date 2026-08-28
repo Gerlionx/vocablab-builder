@@ -115,7 +115,7 @@ function WheelLessonsPage() {
         to="/game-settings"
         className="mb-3 inline-block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
       >
-        &larr; Game settings
+        &larr; Create
       </Link>
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>

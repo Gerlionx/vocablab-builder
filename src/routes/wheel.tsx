@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AnswerRevealer } from "@/components/wheel/AnswerRevealer";
 import { NameWheel } from "@/components/wheel/NameWheel";
+import { PlayLeaderboard } from "@/components/wheel/PlayLeaderboard";
 import { SetupPanel } from "@/components/wheel/SetupPanel";
 import { TeamToss } from "@/components/wheel/TeamToss";
 import {
@@ -35,7 +37,9 @@ import {
   playUrgentTick,
   playWhoosh,
 } from "@/lib/wheel-audio";
-import { formatClock, winnerIndex } from "@/lib/wheel-math";
+import { winnerIndex } from "@/lib/wheel-math";
+import { buildRevealPlan, canRevealMore, displayAnswer } from "@/lib/wheel-answer-reveal";
+import { pointsForAnswer } from "@/lib/wheel-scoring";
 import { WheelPhysics } from "@/lib/wheel-physics";
 import {
   lastWheelLesson,
@@ -98,8 +102,9 @@ function WheelPage() {
   const [clickerDeg, setClickerDeg] = useState(0);
   const [picked, setPicked] = useState<Player | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [revealStep, setRevealStep] = useState(0);
   const [scores, setScores] = useState<number[]>([0, 0, 0]);
+  const [playerScores, setPlayerScores] = useState<Record<string, number>>({});
   const [banks, setBanks] = useState<number[]>([90, 90, 90]);
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
@@ -259,7 +264,7 @@ function WheelPage() {
     (emptyTeam: TeamId) => {
       if (sceneRef.current === "winner") return;
       void playTimeout();
-      setFlipped(false);
+      setRevealStep(0);
       setPrompt(null);
       const n = teamCount;
       let next: TeamId | null = null;
@@ -461,8 +466,9 @@ function WheelPage() {
     setScene("wheel");
     setPicked(null);
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     setScores([0, 0, 0]);
+    setPlayerScores({});
     setBanks([90, 90, 90]);
     setWinner(null);
     setUsedWordIds(new Set());
@@ -481,8 +487,7 @@ function WheelPage() {
   }
 
   function loadLesson(id: string) {
-    const found =
-      lessons.find((s) => s.id === id) ?? listWheelLessons().find((s) => s.id === id);
+    const found = lessons.find((s) => s.id === id) ?? listWheelLessons().find((s) => s.id === id);
     if (!found) return;
     rememberWheelLessonId(found.id);
     setYears(found.years);
@@ -518,8 +523,9 @@ function WheelPage() {
     setPanelOpen(false);
     setPicked(null);
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     setScores(Array.from({ length: 3 }, () => 0));
+    setPlayerScores({});
     setBanks(Array.from({ length: 3 }, () => next.secondsPerTeam));
     setWinner(null);
     setUsedWordIds(new Set());
@@ -575,24 +581,36 @@ function WheelPage() {
     const landed = poolPlayers[idx] ?? poolPlayers[0]!;
     lastKidRef.current = landed.name;
     setPicked(landed);
+    setPrompt(null);
+    setRevealStep(0);
     setScene("landed");
     void playNameLock();
-    window.setTimeout(() => {
-      if (deskOpenRef.current) return;
-      const next = pickPrompt(pool, usedWordIds, settings.askDirection);
-      setPrompt(next);
-      if (next) {
-        setUsedWordIds((ids) => new Set(ids).add(next.word.id));
-      }
-      setScene("exiting");
-      window.setTimeout(() => {
-        if (deskOpenRef.current) return;
-        setFlipped(false);
-        setScene("question");
-      }, 720);
-    }, 700);
   }
   landRef.current = landFromPhysics;
+
+  function playLanded() {
+    if (scene !== "landed" || !picked || deskOpen) return;
+    const next = pickPrompt(pool, usedWordIds, settings.askDirection);
+    setPrompt(next);
+    if (next) {
+      setUsedWordIds((ids) => new Set(ids).add(next.word.id));
+    }
+    setRevealStep(0);
+    setScene("exiting");
+    window.setTimeout(() => {
+      if (deskOpenRef.current) return;
+      setScene("question");
+    }, 720);
+  }
+
+  function skipLanded() {
+    if (scene !== "landed" || !picked || deskOpen) return;
+    setPicked(null);
+    setPrompt(null);
+    setRevealStep(0);
+    setScene("wheel");
+    spin();
+  }
 
   function spin() {
     if (!started || deskOpen || scene === "spinning" || scene === "winner") return;
@@ -601,12 +619,12 @@ function WheelPage() {
     setScene("spinning");
     setPicked(null);
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     void playWhoosh();
     physicsRef.current?.spin();
   }
 
-  function afterAnswer(nextScores: number[]) {
+  function finishTurn(nextScores: number[]) {
     if (teamsOn && settings.winMode === "score") {
       if (nextScores.slice(0, teamCount).some((s) => s >= settings.scoreToWin)) {
         finishMatch(nextScores);
@@ -625,15 +643,20 @@ function WheelPage() {
       physicsRef.current?.reset(0);
     }
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     setPicked(null);
-    setScene("entering");
-    window.setTimeout(() => setScene("wheel"), 650);
+    setScene("wheel");
   }
 
-  function markCorrect() {
-    if (scene !== "question" || !picked) return;
-    const pts = settings.pointsCorrect;
+  function answerPoints() {
+    if (!answerText) return 0;
+    const plan = buildRevealPlan(answerText);
+    const fullyRevealed = displayAnswer(plan, revealStep).complete;
+    return pointsForAnswer(settings, revealStep, fullyRevealed);
+  }
+
+  function awardPoints(pts: number) {
+    if (!picked || pts <= 0) return scores;
     const next = [...scores];
     if (teamsOn) {
       next[picked.team] = (next[picked.team] ?? 0) + pts;
@@ -642,26 +665,54 @@ function WheelPage() {
       setPlusFly(picked.team);
       window.setTimeout(() => setScoreBurst(null), 500);
       window.setTimeout(() => setPlusFly(null), 700);
+    } else {
+      setPlayerScores((prev) => {
+        const updated = { ...prev, [picked.name]: (prev[picked.name] ?? 0) + pts };
+        return updated;
+      });
+      setScoreBurst(0);
+      setPlusFly(0);
+      window.setTimeout(() => setScoreBurst(null), 500);
+      window.setTimeout(() => setPlusFly(null), 700);
     }
+    return next;
+  }
+
+  function markCorrect() {
+    if (scene !== "question" || !picked) return;
+    const pts = answerPoints();
+    const next = awardPoints(pts);
     void playCorrect();
-    window.setTimeout(() => afterAnswer(next), 550);
+    finishTurn(next);
   }
 
   function markMiss() {
     if (scene !== "question") return;
     void playMiss();
-    afterAnswer(scores);
+    finishTurn(scores);
+  }
+
+  function revealHint() {
+    if (scene !== "question" || !prompt || !answerText) return;
+    const plan = buildRevealPlan(answerText);
+    if (!canRevealMore(revealStep, plan)) return;
+    setRevealStep((step) => step + 1);
   }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-        if (e.code === "Space") {
-          e.preventDefault();
-          if (started && !panelOpen && (scene === "wheel" || scene === "landed")) spin();
-        }
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (started && !panelOpen && (scene === "wheel" || scene === "landed")) spin();
+      }
+      if (scene === "landed") {
+        if (e.key === "p" || e.key === "P") playLanded();
+        if (e.key === "s" || e.key === "S") skipLanded();
+      }
       if (scene === "question") {
+        if (e.key === "r" || e.key === "R") revealHint();
         if (e.key === "1" || e.key === "y" || e.key === "Y") markCorrect();
         if (e.key === "2" || e.key === "n" || e.key === "N") markMiss();
       }
@@ -677,6 +728,13 @@ function WheelPage() {
       ? "What does this mean in English?"
       : "How do you say this in French?"
     : null;
+
+  const pendingPoints = answerPoints();
+  const activeName =
+    scene === "question" || scene === "landed" ? (picked?.name ?? null) : null;
+  const hintAvailable = answerText
+    ? canRevealMore(revealStep, buildRevealPlan(answerText))
+    : false;
 
   const activePalette = palettes[picked?.team ?? turn] ?? palettes[0]!;
 
@@ -699,19 +757,54 @@ function WheelPage() {
     setPanelOpen(true);
   }
 
+  const showScoreRail = started && scene !== "toss" && !deskOpen;
+
   return (
     <div className="relative h-dvh overflow-hidden bg-background text-foreground">
+      {showScoreRail ? (
+        <aside
+          className={`pointer-events-none absolute inset-y-0 left-0 z-30 w-[min(18rem,30vw)] ${
+            deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+          }`}
+          aria-label="Scores"
+        >
+          <PlayLeaderboard
+            teamsOn={teamsOn}
+            teamCount={teamCount}
+            scores={scores}
+            playerScores={playerScores}
+            players={players}
+            palettes={palettes}
+            banks={banks}
+            timeMatch={Boolean(timeMatch)}
+            turn={turn}
+            burst={scoreBurst}
+            plusFly={plusFly}
+            plusValue={pendingPoints > 0 ? pendingPoints : settings.pointsCorrect}
+            activePlayer={activeName}
+          />
+        </aside>
+      ) : null}
+
       <div
         className={`flex h-full min-w-0 flex-col items-center bg-[radial-gradient(ellipse_at_center,oklch(0.97_0.02_220)_0%,var(--background)_70%)] transition-[margin,background] duration-500 ${
           !started || panelOpen ? "lg:mr-[36rem]" : "lg:mr-0"
-        }`}
+        } ${showScoreRail ? "ml-[min(18rem,30vw)]" : ""}`}
         style={
           {
             ["--setup-shift"]: !started || panelOpen ? "36rem" : "0px",
-            ...(scene === "question" && teamsOn && picked && !deskOpen
-              ? {
-                  background: `radial-gradient(ellipse at center, color-mix(in oklch, ${activePalette.fill} 18%, white) 0%, var(--background) 72%)`,
-                }
+            ["--score-rail-width"]: showScoreRail ? "min(18rem, 30vw)" : "0px",
+            ...(scene === "question"
+              ? teamsOn && picked && !deskOpen
+                ? {
+                    background: `radial-gradient(ellipse at center, color-mix(in oklch, ${activePalette.fill} 18%, white) 0%, var(--background) 72%)`,
+                  }
+                : !teamsOn && !deskOpen
+                  ? {
+                      background:
+                        "radial-gradient(ellipse at center, oklch(0.97 0.02 220) 0%, var(--background) 72%)",
+                    }
+                  : {}
               : {}),
           } as CSSProperties
         }
@@ -722,24 +815,6 @@ function WheelPage() {
         >
           &larr; Back
         </Link>
-
-        {matchOn && scene !== "toss" ? (
-          <div className={deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"}>
-            <Scoreboard
-              scores={scores}
-              palettes={palettes}
-              banks={banks}
-              timeMatch={Boolean(timeMatch)}
-              turn={turn}
-              scoreToWin={settings.scoreToWin}
-              winMode={settings.winMode}
-              gameMode={settings.gameMode}
-              burst={scoreBurst}
-              plusFly={plusFly}
-              plusValue={settings.pointsCorrect}
-            />
-          </div>
-        ) : null}
 
         <div
           className={`relative flex w-full min-h-0 flex-1 flex-col items-center justify-center self-stretch px-2 pt-1 ${
@@ -794,8 +869,9 @@ function WheelPage() {
                 askLabel={askLabel}
                 promptText={promptText}
                 answerText={answerText}
-                flipped={flipped}
-                onFlip={() => setFlipped(true)}
+                revealStep={revealStep}
+                hintAvailable={hintAvailable}
+                onHint={revealHint}
                 onCorrect={markCorrect}
                 onMiss={markMiss}
               />
@@ -811,6 +887,31 @@ function WheelPage() {
             </div>
           ) : null}
         </div>
+
+        {started && scene === "landed" && picked ? (
+          <div
+            className={`absolute bottom-7 z-20 flex gap-4 ${
+              deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={skipLanded}
+              disabled={deskOpen}
+              className="rounded-full bg-surface px-12 py-5 font-kids text-2xl font-semibold shadow-lg ring-1 ring-border disabled:opacity-40"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              onClick={playLanded}
+              disabled={deskOpen}
+              className="rounded-full bg-primary px-12 py-5 font-kids text-2xl font-semibold text-primary-foreground shadow-lg disabled:opacity-40"
+            >
+              Play
+            </button>
+          </div>
+        ) : null}
 
         {started && (scene === "wheel" || scene === "spinning") ? (
           <div
@@ -895,120 +996,6 @@ function WheelPage() {
   );
 }
 
-function Scoreboard({
-  scores,
-  palettes,
-  banks,
-  timeMatch,
-  turn,
-  scoreToWin,
-  winMode,
-  gameMode,
-  burst,
-  plusFly,
-  plusValue,
-}: {
-  scores: number[];
-  palettes: ReturnType<typeof colorById>[];
-  banks: number[];
-  timeMatch: boolean;
-  turn: TeamId;
-  scoreToWin: number;
-  winMode: WheelSettings["winMode"];
-  gameMode: WheelSettings["gameMode"];
-  burst: TeamId | null;
-  plusFly: TeamId | null;
-  plusValue: number;
-}) {
-  const modeLabel = gameMode === "basic" ? "Basic" : gameMode;
-  return (
-    <div className="relative z-30 w-full shrink-0 px-6 pt-3 pb-1">
-      <p className="text-center font-kids text-xl font-semibold text-muted-foreground">
-        {winMode === "time"
-          ? `${modeLabel} · Time`
-          : `${modeLabel} · First to ${scoreToWin}`}
-      </p>
-      <div className="mt-2 flex items-start justify-center gap-5">
-        {palettes.map((color, i) => (
-          <TeamScore
-            key={color.id}
-            score={scores[i] ?? 0}
-            color={color}
-            active={turn === i}
-            burst={burst === i}
-            plus={plusFly === i ? plusValue : null}
-            clock={timeMatch ? (banks[i] ?? 0) : null}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TeamScore({
-  score,
-  color,
-  active,
-  burst,
-  plus,
-  clock,
-}: {
-  score: number;
-  color: ReturnType<typeof colorById>;
-  active: boolean;
-  burst: boolean;
-  plus: number | null;
-  clock: number | null;
-}) {
-  const urgent = clock != null && clock <= 10 && clock > 0 && active;
-  return (
-    <div className="relative min-w-36 text-center">
-      <div
-        className="inline-flex min-w-28 flex-col items-center rounded-3xl px-7 py-3"
-        style={{
-          background: color.fill,
-          color: color.ink,
-          animation: active ? "vocablab-glow-breathe 1.8s ease-in-out infinite" : undefined,
-          outline: active ? `4px solid ${color.fill}` : undefined,
-          outlineOffset: 4,
-        }}
-      >
-        <span
-          className="font-kids font-semibold tabular-nums leading-none"
-          style={{
-            fontSize: "clamp(2.6rem, 6.5vw, 4.4rem)",
-            animation: burst ? "vocablab-score-burst 0.45s ease" : undefined,
-          }}
-        >
-          {score}
-        </span>
-        <span className="mt-1 font-kids text-lg font-semibold leading-none">{color.label}</span>
-        {clock != null ? (
-          <span
-            className="mt-1 font-kids text-2xl tabular-nums"
-            style={{
-              animation: urgent ? "vocablab-timer-urgent 0.5s ease-in-out infinite" : undefined,
-            }}
-          >
-            {formatClock(clock)}
-          </span>
-        ) : null}
-      </div>
-      {plus != null ? (
-        <span
-          className="pointer-events-none absolute left-1/2 top-0 font-kids text-3xl font-semibold"
-          style={{
-            color: color.fill,
-            animation: "vocablab-float-plus 0.7s ease forwards",
-          }}
-        >
-          +{plus}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
 function QuestionStage({
   name,
   teamColor,
@@ -1016,8 +1003,9 @@ function QuestionStage({
   askLabel,
   promptText,
   answerText,
-  flipped,
-  onFlip,
+  revealStep,
+  hintAvailable,
+  onHint,
   onCorrect,
   onMiss,
 }: {
@@ -1027,13 +1015,12 @@ function QuestionStage({
   askLabel: string | null;
   promptText: string | null;
   answerText: string | null;
-  flipped: boolean;
-  onFlip: () => void;
+  revealStep: number;
+  hintAvailable: boolean;
+  onHint: () => void;
   onCorrect: () => void;
   onMiss: () => void;
 }) {
-  const peekLabel = askLabel?.includes("English") ? "Show English" : "Show French";
-
   return (
     <div className="flex w-full flex-1 flex-col px-8 pb-10 pt-4">
       <div className="mx-auto grid w-full max-w-[92rem] flex-1 items-center gap-x-10 gap-y-6 lg:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)]">
@@ -1072,45 +1059,37 @@ function QuestionStage({
           >
             {promptText}
           </p>
-          {flipped ? (
-            <p
-              className="mt-5 font-kids font-semibold"
-              style={{
-                fontSize: "clamp(2rem, 4.8vw, 3.6rem)",
-                color: teamColor,
-                animation: "vocablab-word-in 0.45s both",
-              }}
-            >
-              {answerText}
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={onFlip}
-              className="mt-6 rounded-full px-8 py-3 font-kids text-2xl font-semibold shadow-md"
-              style={{ background: teamColor, color: teamInk }}
-            >
-              {peekLabel}
-            </button>
-          )}
+          <AnswerRevealer answerText={answerText} revealStep={revealStep} accent={teamColor} />
         </div>
       </div>
 
-      <div className="mx-auto mt-auto flex w-full max-w-2xl gap-4 pt-8">
-        <button
-          type="button"
-          onClick={onCorrect}
-          className="flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
-        >
-          Got it
-        </button>
-        <button
-          type="button"
-          onClick={onMiss}
-          className="flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
-        >
-          Missed
-        </button>
+      <div className="mx-auto mt-auto flex w-full max-w-2xl flex-col items-center gap-3 pt-8">
+        {hintAvailable ? (
+          <button
+            type="button"
+            onClick={onHint}
+            className="rounded-full px-6 py-2 font-kids text-lg font-semibold shadow-sm transition hover:brightness-105 active:scale-[0.98]"
+            style={{ background: teamColor, color: teamInk }}
+          >
+            Hint
+          </button>
+        ) : null}
+        <div className="flex w-full gap-4">
+          <button
+            type="button"
+            onClick={onCorrect}
+            className="flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
+          >
+            Got it
+          </button>
+          <button
+            type="button"
+            onClick={onMiss}
+            className="flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
+          >
+            Missed
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1139,7 +1118,11 @@ function WinOverlay({
       className={`absolute inset-0 z-50 flex flex-col items-center justify-center ${
         away ? "vocablab-play-layer is-away" : "vocablab-play-layer"
       }`}
-      style={{ background: fill, color: ink, animation: away ? undefined : "vocablab-wash-in 0.5s ease" }}
+      style={{
+        background: fill,
+        color: ink,
+        animation: away ? undefined : "vocablab-wash-in 0.5s ease",
+      }}
     >
       <Confetti color={winner === "draw" ? "oklch(0.84 0.16 88)" : (palette?.fill ?? "gold")} />
       <p

@@ -73,7 +73,7 @@ export function SetupPanel({
           <p className="mt-2 text-sm text-muted-foreground">
             No lessons yet.{" "}
             <Link to="/game-settings/wheel" className="font-semibold text-primary underline-offset-2 hover:underline">
-              Prep one in Game settings
+              Prep one in Create
             </Link>
             .
           </p>
@@ -95,7 +95,7 @@ export function SetupPanel({
           </select>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          Vocabulary and game mode are locked in the lesson. Edit them under Game settings → Wheel.
+          Vocabulary and game mode are locked in the lesson. Edit them under Create → Wheel.
         </p>
         {saveNote ? (
           <p className="mt-2 text-sm font-semibold text-success">{saveNote}</p>

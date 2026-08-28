@@ -41,7 +41,7 @@ export function TopBar() {
           aria-haspopup="menu"
           className="rounded-full px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted active:bg-accent"
         >
-          Marie
+          Dorina
         </button>
         {open ? (
           <div
@@ -53,7 +53,7 @@ export function TopBar() {
               onClick={() => setOpen(false)}
               className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-muted"
             >
-              Game settings
+              Create
             </Link>
             <Link
               to="/vocabulary"
@@ -61,13 +61,6 @@ export function TopBar() {
               className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-muted"
             >
               Vocabulary
-            </Link>
-            <Link
-              to="/account"
-              onClick={() => setOpen(false)}
-              className="block px-4 py-2.5 text-sm text-popover-foreground transition-colors hover:bg-muted"
-            >
-              Invite teacher
             </Link>
             <div className="my-1 h-px bg-border" />
             <Link

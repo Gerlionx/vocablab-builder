@@ -4,7 +4,7 @@ import { AppChrome } from "@/components/AppChrome";
 export const Route = createFileRoute("/game-settings")({
   head: () => ({
     meta: [
-      { title: "Game settings — Vocablab" },
+      { title: "Create — Vocablab" },
       {
         name: "description",
         content: "Prepare lessons and play modes for each Vocablab classroom game.",

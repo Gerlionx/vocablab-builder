@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/game-settings/")({
   head: () => ({
     meta: [
-      { title: "Game settings — Vocablab" },
+      { title: "Create — Vocablab" },
       {
         name: "description",
         content: "Prepare lessons and play modes for each Vocablab classroom game.",
@@ -23,7 +23,7 @@ function GameSettingsHub() {
         &larr; Home
       </Link>
       <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">
-        Game settings
+        Create
       </h1>
       <p className="mt-2 max-w-lg text-sm text-muted-foreground">
         Prep before the bell. Pick a game, save lessons with vocabulary and a game mode, then in

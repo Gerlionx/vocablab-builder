@@ -46,7 +46,7 @@ function AccountPage() {
         </Link>
         <h1 className="text-4xl font-medium tracking-tight">Account</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Signed in as Marie · marie.claire@school.ac.uk
+          Signed in as Dorina · dorina.crisan@gmail.com
         </p>
 
         <section className="mt-12">
