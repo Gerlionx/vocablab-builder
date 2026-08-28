@@ -733,15 +733,44 @@ function WheelPage() {
     setPanelOpen(true);
   }
 
+  const showScoreRail = started && scene !== "toss" && !deskOpen;
+
   return (
     <div className="relative h-dvh overflow-hidden bg-background text-foreground">
+      {started && scene !== "toss" ? (
+        <aside
+          className={`absolute inset-y-0 left-0 z-30 w-[min(18rem,30vw)] border-r border-border/60 bg-card/50 backdrop-blur-sm ${
+            deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+          }`}
+          aria-label="Scoreboard"
+        >
+          <PlayLeaderboard
+            teamsOn={teamsOn}
+            teamCount={teamCount}
+            scores={scores}
+            playerScores={playerScores}
+            players={players}
+            palettes={palettes}
+            banks={banks}
+            timeMatch={Boolean(timeMatch)}
+            turn={turn}
+            settings={settings}
+            burst={scoreBurst}
+            plusFly={plusFly}
+            plusValue={revealStep > 0 ? settings.pointsRevealed : settings.pointsCorrect}
+            activePlayer={scene === "question" ? (picked?.name ?? null) : null}
+          />
+        </aside>
+      ) : null}
+
       <div
         className={`flex h-full min-w-0 flex-col items-center bg-[radial-gradient(ellipse_at_center,oklch(0.97_0.02_220)_0%,var(--background)_70%)] transition-[margin,background] duration-500 ${
           !started || panelOpen ? "lg:mr-[36rem]" : "lg:mr-0"
-        }`}
+        } ${showScoreRail ? "ml-[min(18rem,30vw)]" : ""}`}
         style={
           {
             ["--setup-shift"]: !started || panelOpen ? "36rem" : "0px",
+            ["--score-rail-width"]: showScoreRail ? "min(18rem, 30vw)" : "0px",
             ...(scene === "question" && teamsOn && picked && !deskOpen
               ? {
                   background: `radial-gradient(ellipse at center, color-mix(in oklch, ${activePalette.fill} 18%, white) 0%, var(--background) 72%)`,
@@ -756,27 +785,6 @@ function WheelPage() {
         >
           &larr; Back
         </Link>
-
-        {started && scene !== "toss" ? (
-          <div className={deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"}>
-            <PlayLeaderboard
-              teamsOn={teamsOn}
-              teamCount={teamCount}
-              scores={scores}
-              playerScores={playerScores}
-              players={players}
-              palettes={palettes}
-              banks={banks}
-              timeMatch={Boolean(timeMatch)}
-              turn={turn}
-              settings={settings}
-              burst={scoreBurst}
-              plusFly={plusFly}
-              plusValue={revealStep > 0 ? settings.pointsRevealed : settings.pointsCorrect}
-              activePlayer={scene === "question" ? (picked?.name ?? null) : null}
-            />
-          </div>
-        ) : null}
 
         <div
           className={`relative flex w-full min-h-0 flex-1 flex-col items-center justify-center self-stretch px-2 pt-1 ${
