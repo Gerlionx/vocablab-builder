@@ -8,6 +8,6 @@ When updating this file, preserve this bar for all agents and keep entries conci
 ## Vocabulary data
 
 - Canonical types and shared constants: `src/lib/vocab-data.ts` (`Word`, `YEARS`, `TERMS`, `TOPICS`, `SEED_WORDS`).
-- Year-specific imports live in `src/lib/year8-vocab.ts` and `src/lib/year9-vocab.ts`; append new year files and spread them into `SEED_WORDS`.
+- Year-specific imports live in `src/lib/year8-vocab.ts`, `src/lib/year9-vocab.ts` (Mixed Ability), and `src/lib/year9-more-able-vocab.ts`; append new year files and spread them into `SEED_WORDS`.
 - Vocabulary UI uses term cards + booklet topic view in `src/routes/vocabulary.tsx`.
 - Build: `npm run build`; preview: `npm run preview`.
