@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AnswerRevealer } from "@/components/wheel/AnswerRevealer";
 import { NameWheel } from "@/components/wheel/NameWheel";
+import { PlayLeaderboard } from "@/components/wheel/PlayLeaderboard";
 import { SetupPanel } from "@/components/wheel/SetupPanel";
 import { TeamToss } from "@/components/wheel/TeamToss";
 import {
@@ -35,7 +37,8 @@ import {
   playUrgentTick,
   playWhoosh,
 } from "@/lib/wheel-audio";
-import { formatClock, winnerIndex } from "@/lib/wheel-math";
+import { winnerIndex } from "@/lib/wheel-math";
+import { pointsForAnswer, pointsForSkip } from "@/lib/wheel-scoring";
 import { WheelPhysics } from "@/lib/wheel-physics";
 import {
   lastWheelLesson,
@@ -98,8 +101,9 @@ function WheelPage() {
   const [clickerDeg, setClickerDeg] = useState(0);
   const [picked, setPicked] = useState<Player | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
-  const [flipped, setFlipped] = useState(false);
+  const [revealStep, setRevealStep] = useState(0);
   const [scores, setScores] = useState<number[]>([0, 0, 0]);
+  const [playerScores, setPlayerScores] = useState<Record<string, number>>({});
   const [banks, setBanks] = useState<number[]>([90, 90, 90]);
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
@@ -259,7 +263,7 @@ function WheelPage() {
     (emptyTeam: TeamId) => {
       if (sceneRef.current === "winner") return;
       void playTimeout();
-      setFlipped(false);
+      setRevealStep(0);
       setPrompt(null);
       const n = teamCount;
       let next: TeamId | null = null;
@@ -461,8 +465,9 @@ function WheelPage() {
     setScene("wheel");
     setPicked(null);
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     setScores([0, 0, 0]);
+    setPlayerScores({});
     setBanks([90, 90, 90]);
     setWinner(null);
     setUsedWordIds(new Set());
@@ -481,8 +486,7 @@ function WheelPage() {
   }
 
   function loadLesson(id: string) {
-    const found =
-      lessons.find((s) => s.id === id) ?? listWheelLessons().find((s) => s.id === id);
+    const found = lessons.find((s) => s.id === id) ?? listWheelLessons().find((s) => s.id === id);
     if (!found) return;
     rememberWheelLessonId(found.id);
     setYears(found.years);
@@ -518,8 +522,9 @@ function WheelPage() {
     setPanelOpen(false);
     setPicked(null);
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     setScores(Array.from({ length: 3 }, () => 0));
+    setPlayerScores({});
     setBanks(Array.from({ length: 3 }, () => next.secondsPerTeam));
     setWinner(null);
     setUsedWordIds(new Set());
@@ -587,7 +592,7 @@ function WheelPage() {
       setScene("exiting");
       window.setTimeout(() => {
         if (deskOpenRef.current) return;
-        setFlipped(false);
+        setRevealStep(0);
         setScene("question");
       }, 720);
     }, 700);
@@ -601,7 +606,7 @@ function WheelPage() {
     setScene("spinning");
     setPicked(null);
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     void playWhoosh();
     physicsRef.current?.spin();
   }
@@ -625,15 +630,14 @@ function WheelPage() {
       physicsRef.current?.reset(0);
     }
     setPrompt(null);
-    setFlipped(false);
+    setRevealStep(0);
     setPicked(null);
     setScene("entering");
     window.setTimeout(() => setScene("wheel"), 650);
   }
 
-  function markCorrect() {
-    if (scene !== "question" || !picked) return;
-    const pts = settings.pointsCorrect;
+  function awardPoints(pts: number) {
+    if (!picked || pts <= 0) return scores;
     const next = [...scores];
     if (teamsOn) {
       next[picked.team] = (next[picked.team] ?? 0) + pts;
@@ -642,7 +646,23 @@ function WheelPage() {
       setPlusFly(picked.team);
       window.setTimeout(() => setScoreBurst(null), 500);
       window.setTimeout(() => setPlusFly(null), 700);
+    } else {
+      setPlayerScores((prev) => {
+        const updated = { ...prev, [picked.name]: (prev[picked.name] ?? 0) + pts };
+        return updated;
+      });
+      setScoreBurst(0);
+      setPlusFly(0);
+      window.setTimeout(() => setScoreBurst(null), 500);
+      window.setTimeout(() => setPlusFly(null), 700);
     }
+    return next;
+  }
+
+  function markCorrect() {
+    if (scene !== "question" || !picked) return;
+    const pts = pointsForAnswer(settings, revealStep);
+    const next = awardPoints(pts);
     void playCorrect();
     window.setTimeout(() => afterAnswer(next), 550);
   }
@@ -653,17 +673,31 @@ function WheelPage() {
     afterAnswer(scores);
   }
 
+  function markSkip() {
+    if (scene !== "question" || !picked) return;
+    const pts = pointsForSkip(settings);
+    const next = pts > 0 ? awardPoints(pts) : scores;
+    afterAnswer(next);
+  }
+
+  function revealHint() {
+    if (scene !== "question" || !prompt) return;
+    setRevealStep((step) => step + 1);
+  }
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
-        if (e.code === "Space") {
-          e.preventDefault();
-          if (started && !panelOpen && (scene === "wheel" || scene === "landed")) spin();
-        }
+      if (e.code === "Space") {
+        e.preventDefault();
+        if (started && !panelOpen && (scene === "wheel" || scene === "landed")) spin();
+      }
       if (scene === "question") {
         if (e.key === "1" || e.key === "y" || e.key === "Y") markCorrect();
         if (e.key === "2" || e.key === "n" || e.key === "N") markMiss();
+        if (e.key === "3" || e.key === "s" || e.key === "S") markSkip();
+        if (e.key === "r" || e.key === "R") revealHint();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -723,20 +757,23 @@ function WheelPage() {
           &larr; Back
         </Link>
 
-        {matchOn && scene !== "toss" ? (
+        {started && scene !== "toss" ? (
           <div className={deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"}>
-            <Scoreboard
+            <PlayLeaderboard
+              teamsOn={teamsOn}
+              teamCount={teamCount}
               scores={scores}
+              playerScores={playerScores}
+              players={players}
               palettes={palettes}
               banks={banks}
               timeMatch={Boolean(timeMatch)}
               turn={turn}
-              scoreToWin={settings.scoreToWin}
-              winMode={settings.winMode}
-              gameMode={settings.gameMode}
+              settings={settings}
               burst={scoreBurst}
               plusFly={plusFly}
-              plusValue={settings.pointsCorrect}
+              plusValue={revealStep > 0 ? settings.pointsRevealed : settings.pointsCorrect}
+              activePlayer={scene === "question" ? (picked?.name ?? null) : null}
             />
           </div>
         ) : null}
@@ -794,10 +831,13 @@ function WheelPage() {
                 askLabel={askLabel}
                 promptText={promptText}
                 answerText={answerText}
-                flipped={flipped}
-                onFlip={() => setFlipped(true)}
+                revealStep={revealStep}
+                onReveal={revealHint}
                 onCorrect={markCorrect}
                 onMiss={markMiss}
+                onSkip={markSkip}
+                directPoints={settings.pointsCorrect}
+                revealedPoints={settings.pointsRevealed}
               />
             </div>
           ) : null}
@@ -895,120 +935,6 @@ function WheelPage() {
   );
 }
 
-function Scoreboard({
-  scores,
-  palettes,
-  banks,
-  timeMatch,
-  turn,
-  scoreToWin,
-  winMode,
-  gameMode,
-  burst,
-  plusFly,
-  plusValue,
-}: {
-  scores: number[];
-  palettes: ReturnType<typeof colorById>[];
-  banks: number[];
-  timeMatch: boolean;
-  turn: TeamId;
-  scoreToWin: number;
-  winMode: WheelSettings["winMode"];
-  gameMode: WheelSettings["gameMode"];
-  burst: TeamId | null;
-  plusFly: TeamId | null;
-  plusValue: number;
-}) {
-  const modeLabel = gameMode === "basic" ? "Basic" : gameMode;
-  return (
-    <div className="relative z-30 w-full shrink-0 px-6 pt-3 pb-1">
-      <p className="text-center font-kids text-xl font-semibold text-muted-foreground">
-        {winMode === "time"
-          ? `${modeLabel} · Time`
-          : `${modeLabel} · First to ${scoreToWin}`}
-      </p>
-      <div className="mt-2 flex items-start justify-center gap-5">
-        {palettes.map((color, i) => (
-          <TeamScore
-            key={color.id}
-            score={scores[i] ?? 0}
-            color={color}
-            active={turn === i}
-            burst={burst === i}
-            plus={plusFly === i ? plusValue : null}
-            clock={timeMatch ? (banks[i] ?? 0) : null}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TeamScore({
-  score,
-  color,
-  active,
-  burst,
-  plus,
-  clock,
-}: {
-  score: number;
-  color: ReturnType<typeof colorById>;
-  active: boolean;
-  burst: boolean;
-  plus: number | null;
-  clock: number | null;
-}) {
-  const urgent = clock != null && clock <= 10 && clock > 0 && active;
-  return (
-    <div className="relative min-w-36 text-center">
-      <div
-        className="inline-flex min-w-28 flex-col items-center rounded-3xl px-7 py-3"
-        style={{
-          background: color.fill,
-          color: color.ink,
-          animation: active ? "vocablab-glow-breathe 1.8s ease-in-out infinite" : undefined,
-          outline: active ? `4px solid ${color.fill}` : undefined,
-          outlineOffset: 4,
-        }}
-      >
-        <span
-          className="font-kids font-semibold tabular-nums leading-none"
-          style={{
-            fontSize: "clamp(2.6rem, 6.5vw, 4.4rem)",
-            animation: burst ? "vocablab-score-burst 0.45s ease" : undefined,
-          }}
-        >
-          {score}
-        </span>
-        <span className="mt-1 font-kids text-lg font-semibold leading-none">{color.label}</span>
-        {clock != null ? (
-          <span
-            className="mt-1 font-kids text-2xl tabular-nums"
-            style={{
-              animation: urgent ? "vocablab-timer-urgent 0.5s ease-in-out infinite" : undefined,
-            }}
-          >
-            {formatClock(clock)}
-          </span>
-        ) : null}
-      </div>
-      {plus != null ? (
-        <span
-          className="pointer-events-none absolute left-1/2 top-0 font-kids text-3xl font-semibold"
-          style={{
-            color: color.fill,
-            animation: "vocablab-float-plus 0.7s ease forwards",
-          }}
-        >
-          +{plus}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
 function QuestionStage({
   name,
   teamColor,
@@ -1016,10 +942,13 @@ function QuestionStage({
   askLabel,
   promptText,
   answerText,
-  flipped,
-  onFlip,
+  revealStep,
+  onReveal,
   onCorrect,
   onMiss,
+  onSkip,
+  directPoints,
+  revealedPoints,
 }: {
   name: string;
   teamColor: string;
@@ -1027,12 +956,15 @@ function QuestionStage({
   askLabel: string | null;
   promptText: string | null;
   answerText: string | null;
-  flipped: boolean;
-  onFlip: () => void;
+  revealStep: number;
+  onReveal: () => void;
   onCorrect: () => void;
   onMiss: () => void;
+  onSkip: () => void;
+  directPoints: number;
+  revealedPoints: number;
 }) {
-  const peekLabel = askLabel?.includes("English") ? "Show English" : "Show French";
+  const pendingPoints = revealStep > 0 ? revealedPoints : directPoints;
 
   return (
     <div className="flex w-full flex-1 flex-col px-8 pb-10 pt-4">
@@ -1072,42 +1004,41 @@ function QuestionStage({
           >
             {promptText}
           </p>
-          {flipped ? (
-            <p
-              className="mt-5 font-kids font-semibold"
-              style={{
-                fontSize: "clamp(2rem, 4.8vw, 3.6rem)",
-                color: teamColor,
-                animation: "vocablab-word-in 0.45s both",
-              }}
-            >
-              {answerText}
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={onFlip}
-              className="mt-6 rounded-full px-8 py-3 font-kids text-2xl font-semibold shadow-md"
-              style={{ background: teamColor, color: teamInk }}
-            >
-              {peekLabel}
-            </button>
-          )}
+          <AnswerRevealer
+            answerText={answerText}
+            revealStep={revealStep}
+            onReveal={onReveal}
+            accent={teamColor}
+            ink={teamInk}
+          />
         </div>
       </div>
 
-      <div className="mx-auto mt-auto flex w-full max-w-2xl gap-4 pt-8">
+      <p className="mx-auto mt-4 text-center font-kids text-lg font-semibold text-muted-foreground">
+        {revealStep > 0
+          ? `Hint used — ${pendingPoints} pt${pendingPoints === 1 ? "" : "s"} if correct`
+          : `No hints — ${directPoints} pt${directPoints === 1 ? "" : "s"} if correct`}
+      </p>
+
+      <div className="mx-auto mt-auto flex w-full max-w-3xl flex-wrap gap-3 pt-6">
         <button
           type="button"
           onClick={onCorrect}
-          className="flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
+          className="min-w-[9rem] flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
         >
           Got it
         </button>
         <button
           type="button"
+          onClick={onSkip}
+          className="min-w-[9rem] flex-1 rounded-full bg-secondary py-5 font-kids text-2xl font-semibold text-secondary-foreground ring-1 ring-border"
+        >
+          Skip turn
+        </button>
+        <button
+          type="button"
           onClick={onMiss}
-          className="flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
+          className="min-w-[9rem] flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
         >
           Missed
         </button>
@@ -1139,7 +1070,11 @@ function WinOverlay({
       className={`absolute inset-0 z-50 flex flex-col items-center justify-center ${
         away ? "vocablab-play-layer is-away" : "vocablab-play-layer"
       }`}
-      style={{ background: fill, color: ink, animation: away ? undefined : "vocablab-wash-in 0.5s ease" }}
+      style={{
+        background: fill,
+        color: ink,
+        animation: away ? undefined : "vocablab-wash-in 0.5s ease",
+      }}
     >
       <Confetti color={winner === "draw" ? "oklch(0.84 0.16 88)" : (palette?.fill ?? "gold")} />
       <p

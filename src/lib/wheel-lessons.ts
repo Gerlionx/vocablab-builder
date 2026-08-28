@@ -40,6 +40,8 @@ export type WheelLesson = {
   winMode: WinMode;
   scoreToWin: number;
   pointsCorrect: number;
+  pointsRevealed: number;
+  pointsSkip: number;
   secondsPerTeam: number;
 };
 
@@ -60,7 +62,10 @@ export function suggestLessonTitle(years: string[], topics: string[]) {
 
 function asList(value: unknown, fallback: string[]): string[] {
   if (Array.isArray(value)) {
-    const out = value.map(String).map((s) => s.trim()).filter(Boolean);
+    const out = value
+      .map(String)
+      .map((s) => s.trim())
+      .filter(Boolean);
     return out.length ? [...new Set(out)] : [...fallback];
   }
   if (typeof value === "string" && value.trim() && value !== "All") return [value.trim()];
@@ -77,6 +82,8 @@ export function lessonToSettings(lesson: WheelLesson): WheelSettings {
     winMode: lesson.winMode,
     scoreToWin: lesson.scoreToWin,
     pointsCorrect: lesson.pointsCorrect,
+    pointsRevealed: lesson.pointsRevealed,
+    pointsSkip: lesson.pointsSkip,
     secondsPerTeam: lesson.secondsPerTeam,
     askDirection: lesson.askDirection,
   };
@@ -154,10 +161,9 @@ export function lastWheelLesson(): WheelLesson | null {
   return listWheelLessons().find((s) => s.id === id) ?? null;
 }
 
-export function blankLessonDraft(defaults: WheelSettings = DEFAULT_WHEEL_SETTINGS): Omit<
-  WheelLesson,
-  "id" | "savedAt"
-> {
+export function blankLessonDraft(
+  defaults: WheelSettings = DEFAULT_WHEEL_SETTINGS,
+): Omit<WheelLesson, "id" | "savedAt"> {
   return {
     title: "",
     years: ["Year 7"],
@@ -169,15 +175,20 @@ export function blankLessonDraft(defaults: WheelSettings = DEFAULT_WHEEL_SETTING
     winMode: defaults.winMode,
     scoreToWin: defaults.scoreToWin,
     pointsCorrect: defaults.pointsCorrect,
+    pointsRevealed: defaults.pointsRevealed,
+    pointsSkip: defaults.pointsSkip,
     secondsPerTeam: defaults.secondsPerTeam,
   };
+}
+
+function defaultPointsRevealed(pointsCorrect: number): number {
+  return Math.max(0, Math.min(pointsCorrect, Math.floor(pointsCorrect / 2) || 1));
 }
 
 export function upsertWheelLesson(
   input: Omit<WheelLesson, "id" | "savedAt"> & { id?: string },
 ): WheelLesson {
-  const title =
-    tidyLessonTitle(input.title) || suggestLessonTitle(input.years, input.topics);
+  const title = tidyLessonTitle(input.title) || suggestLessonTitle(input.years, input.topics);
   const list = listWheelLessons();
   const byId = input.id ? list.find((s) => s.id === input.id) : undefined;
   const byTitle = list.find((s) => s.title.toLowerCase() === title.toLowerCase());
@@ -200,6 +211,20 @@ export function upsertWheelLesson(
     pointsCorrect: clamp(
       Number(input.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect,
       1,
+      20,
+    ),
+    pointsRevealed: clamp(
+      typeof input.pointsRevealed === "number"
+        ? input.pointsRevealed
+        : defaultPointsRevealed(
+            Number(input.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect,
+          ),
+      0,
+      20,
+    ),
+    pointsSkip: clamp(
+      typeof input.pointsSkip === "number" ? input.pointsSkip : DEFAULT_WHEEL_SETTINGS.pointsSkip,
+      0,
       20,
     ),
     secondsPerTeam: clamp(
@@ -242,9 +267,17 @@ function normaliseLesson(raw: unknown): WheelLesson | null {
     askDirection,
     winMode: s.winMode === "time" ? "time" : "score",
     scoreToWin: clamp(Number(s.scoreToWin) || DEFAULT_WHEEL_SETTINGS.scoreToWin, 5, 200),
-    pointsCorrect: clamp(
-      Number(s.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect,
-      1,
+    pointsCorrect: clamp(Number(s.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect, 1, 20),
+    pointsRevealed: clamp(
+      typeof s.pointsRevealed === "number"
+        ? s.pointsRevealed
+        : defaultPointsRevealed(Number(s.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect),
+      0,
+      20,
+    ),
+    pointsSkip: clamp(
+      typeof s.pointsSkip === "number" ? s.pointsSkip : DEFAULT_WHEEL_SETTINGS.pointsSkip,
+      0,
       20,
     ),
     secondsPerTeam: clamp(

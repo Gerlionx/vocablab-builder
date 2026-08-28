@@ -15,7 +15,12 @@ export type WheelSettings = {
   gameMode: WheelGameModeId;
   winMode: WinMode;
   scoreToWin: number;
+  /** Points for a correct answer without using reveal hints. */
   pointsCorrect: number;
+  /** Points for a correct answer after one or more reveal hints. */
+  pointsRevealed: number;
+  /** Points awarded on a skipped turn (0 = no penalty). */
+  pointsSkip: number;
   secondsPerTeam: number;
   askDirection: AskDirection;
 };
@@ -25,6 +30,8 @@ export const DEFAULT_WHEEL_SETTINGS: WheelSettings = {
   winMode: "score",
   scoreToWin: 20,
   pointsCorrect: 3,
+  pointsRevealed: 1,
+  pointsSkip: 0,
   secondsPerTeam: 90,
   askDirection: "random",
 };
@@ -41,13 +48,28 @@ export function loadWheelSettings(): WheelSettings {
       parsed.askDirection === "french" || parsed.askDirection === "english"
         ? parsed.askDirection
         : "random";
+    const pointsCorrect = clamp(
+      Number(parsed.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect,
+      1,
+      20,
+    );
     return {
       gameMode: normaliseWheelGameMode(parsed.gameMode),
       winMode: parsed.winMode === "time" ? "time" : "score",
       scoreToWin: clamp(Number(parsed.scoreToWin) || DEFAULT_WHEEL_SETTINGS.scoreToWin, 5, 200),
-      pointsCorrect: clamp(
-        Number(parsed.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect,
-        1,
+      pointsCorrect,
+      pointsRevealed: clamp(
+        typeof parsed.pointsRevealed === "number"
+          ? parsed.pointsRevealed
+          : Math.max(0, Math.min(pointsCorrect, Math.floor(pointsCorrect / 2) || 1)),
+        0,
+        20,
+      ),
+      pointsSkip: clamp(
+        typeof parsed.pointsSkip === "number"
+          ? parsed.pointsSkip
+          : DEFAULT_WHEEL_SETTINGS.pointsSkip,
+        0,
         20,
       ),
       secondsPerTeam: clamp(
@@ -67,7 +89,8 @@ export function saveWheelSettings(next: WheelSettings) {
 }
 
 export function describeSettings(s: WheelSettings) {
-  const pts = s.pointsCorrect === 1 ? "1 point each" : `${s.pointsCorrect} points each`;
+  const pts = s.pointsCorrect === 1 ? "1 pt direct" : `${s.pointsCorrect} pts direct`;
+  const reveal = s.pointsRevealed === 1 ? "1 pt hinted" : `${s.pointsRevealed} pts hinted`;
   const ask =
     s.askDirection === "french"
       ? "French → English"
@@ -76,9 +99,9 @@ export function describeSettings(s: WheelSettings) {
         : "mixed";
   const mode = s.gameMode === "basic" ? "Basic" : s.gameMode;
   if (s.winMode === "time") {
-    return `${mode} · Time · ${s.secondsPerTeam}s per team · ${pts} · ${ask}`;
+    return `${mode} · Time · ${s.secondsPerTeam}s per team · ${pts} · ${reveal} · ${ask}`;
   }
-  return `${mode} · First to ${s.scoreToWin} · ${pts} · ${ask}`;
+  return `${mode} · First to ${s.scoreToWin} · ${pts} · ${reveal} · ${ask}`;
 }
 
 function clamp(n: number, min: number, max: number) {
