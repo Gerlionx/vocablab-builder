@@ -733,16 +733,19 @@ function WheelPage() {
     setPanelOpen(true);
   }
 
-  const showScoreRail = started && scene !== "toss" && !deskOpen;
+  const hasScoreEntries = teamsOn
+    ? scores.slice(0, teamCount).some((s) => s > 0)
+    : Object.values(playerScores).some((s) => s > 0);
+  const showScoreRail = started && scene !== "toss" && !deskOpen && hasScoreEntries;
 
   return (
     <div className="relative h-dvh overflow-hidden bg-background text-foreground">
-      {started && scene !== "toss" ? (
+      {showScoreRail ? (
         <aside
-          className={`absolute inset-y-0 left-0 z-30 w-[min(18rem,30vw)] border-r border-border/60 bg-card/50 backdrop-blur-sm ${
+          className={`pointer-events-none absolute inset-y-0 left-0 z-30 w-[min(18rem,30vw)] ${
             deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
           }`}
-          aria-label="Scoreboard"
+          aria-label="Scores"
         >
           <PlayLeaderboard
             teamsOn={teamsOn}
@@ -754,7 +757,6 @@ function WheelPage() {
             banks={banks}
             timeMatch={Boolean(timeMatch)}
             turn={turn}
-            settings={settings}
             burst={scoreBurst}
             plusFly={plusFly}
             plusValue={revealStep > 0 ? settings.pointsRevealed : settings.pointsCorrect}
