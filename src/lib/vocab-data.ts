@@ -169,7 +169,7 @@ export const SEED_WORDS: Word[] = [
   // Year 7 — Term 2 — Animals
   w("Year 7", "Term 2", "Animals", "Medium", "J'ai", "I have"),
   w("Year 7", "Term 2", "Animals", "Medium", "Je n'ai pas de", "I don't have any"),
-  w("Year 7", "Term 2", "Animals", "Medium", "Je n' ai pas d'animal", "I do not have any animals"),
+  w("Year 7", "Term 2", "Animals", "Medium", "Je n'ai pas d'animal", "I do not have any animals"),
   w("Year 7", "Term 2", "Animals", "Low", "un chien", "a dog"),
   w("Year 7", "Term 2", "Animals", "Low", "un chat", "a cat"),
   w("Year 7", "Term 2", "Animals", "Low", "un cheval", "a horse"),
@@ -332,7 +332,7 @@ export const SEED_WORDS: Word[] = [
   w("Year 7", "Term 4", "Opinions and reasons", "Medium", "facile", "easy"),
   w("Year 7", "Term 4", "Opinions and reasons", "Medium", "difficile", "difficult"),
   w("Year 7", "Term 4", "Opinions and reasons", "Medium", "drôle / marrant", "fun"),
-  w("Year 7", "Term 4", "Opinions and reasons", "Low", "ennuyeux/ barbant", "boring"),
+  w("Year 7", "Term 4", "Opinions and reasons", "Low", "ennuyeux/barbant", "boring"),
   w("Year 7", "Term 4", "Opinions and reasons", "Medium", "formidable", "amazing"),
   w("Year 7", "Term 4", "Opinions and reasons", "Low", "Car / parce que", "because"),
   w("Year 7", "Term 4", "Opinions and reasons", "Medium", "Mais", "but"),
@@ -452,7 +452,7 @@ export const SEED_WORDS: Word[] = [
     "At the canteen",
     "Medium",
     "de la glace à la fraise/au chocolat",
-    "(some) strawberry/ chocolate ice cream",
+    "(some) strawberry/chocolate ice cream",
   ),
   w(
     "Year 7",
@@ -467,7 +467,7 @@ export const SEED_WORDS: Word[] = [
   w("Year 7", "Term 6", "At the canteen", "Low", "des pommes de terre", "(some) potatoes"),
   w("Year 7", "Term 6", "At the canteen", "Medium", "C'est délicieux", "it is delicious"),
   w("Year 7", "Term 6", "At the canteen", "Medium", "C'est dégoûtant", "it is disgusting"),
-  w("Year 7", "Term 6", "At the canteen", "High", "Comme entrée", "as starter /for starters"),
+  w("Year 7", "Term 6", "At the canteen", "High", "Comme entrée", "as starter/for starters"),
   w("Year 7", "Term 6", "At the canteen", "High", "Comme plat", "as a main course"),
   w("Year 7", "Term 6", "At the canteen", "High", "Comme dessert", "as dessert / for dessert"),
 
