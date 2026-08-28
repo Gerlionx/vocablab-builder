@@ -38,10 +38,28 @@ export function pointerLocal(angle: number) {
   return (90 - (((angle % 360) + 360) % 360) + 360) % 360;
 }
 
+/** Signed degrees from the nearest peg at 3 o'clock; negative = before the peg. */
+export function pegOffsetLocal(angle: number, count: number) {
+  const step = 360 / Math.max(1, count);
+  let d = pointerLocal(angle) % step;
+  if (d > step / 2) d -= step;
+  return d;
+}
+
+/**
+ * Slice under the 3 o'clock pointer. Pegs sit on slice starts; when the wheel
+ * kisses a peg from below (within KISS_DEG), the upcoming slice wins so the named
+ * student matches the pin the clicker is on.
+ */
 export function winnerIndex(angle: number, count: number) {
   const n = Math.max(1, count);
   const step = 360 / n;
-  return Math.min(n - 1, Math.floor(pointerLocal(angle) / step));
+  const local = pointerLocal(angle);
+  const d = pegOffsetLocal(angle, count);
+  if (d < 0 && d >= -KISS_DEG) {
+    return Math.min(n - 1, Math.floor(local / step) + 1);
+  }
+  return Math.min(n - 1, Math.floor(local / step));
 }
 
 export function pegCountForSlices(sliceCount: number) {
