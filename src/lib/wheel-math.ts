@@ -57,7 +57,7 @@ export function winnerIndex(angle: number, count: number) {
   const local = pointerLocal(angle);
   const d = pegOffsetLocal(angle, count);
   if (d < 0 && d >= -KISS_DEG) {
-    return Math.min(n - 1, Math.floor(local / step) + 1);
+    return (Math.floor(local / step) + 1) % n;
   }
   return Math.min(n - 1, Math.floor(local / step));
 }

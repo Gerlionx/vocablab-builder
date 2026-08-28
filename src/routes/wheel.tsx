@@ -38,8 +38,8 @@ import {
   playWhoosh,
 } from "@/lib/wheel-audio";
 import { winnerIndex } from "@/lib/wheel-math";
-import { buildRevealPlan, displayAnswer } from "@/lib/wheel-answer-reveal";
-import { pointsForAnswer, pointsForSkip } from "@/lib/wheel-scoring";
+import { buildRevealPlan, canRevealMore, displayAnswer } from "@/lib/wheel-answer-reveal";
+import { pointsForAnswer } from "@/lib/wheel-scoring";
 import { WheelPhysics } from "@/lib/wheel-physics";
 import {
   lastWheelLesson,
@@ -58,7 +58,7 @@ export const Route = createFileRoute("/wheel")({
 
 type TeamId = number;
 type Scene =
-  "toss" | "wheel" | "spinning" | "landed" | "exiting" | "question" | "result" | "entering" | "winner";
+  "toss" | "wheel" | "spinning" | "landed" | "exiting" | "question" | "entering" | "winner";
 type Prompt = { word: Word; askFrench: boolean };
 type Player = { name: string; team: TeamId };
 
@@ -109,7 +109,11 @@ function WheelPage() {
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
   const [scoreBurst, setScoreBurst] = useState<TeamId | null>(null);
-  const [plusFly, setPlusFly] = useState<TeamId | null>(null);
+  const [scoreFly, setScoreFly] = useState<{
+    target: TeamId;
+    value: number;
+    player: string;
+  } | null>(null);
   const [tossWinner, setTossWinner] = useState<TeamId>(0);
   const [usedWordIds, setUsedWordIds] = useState<Set<string>>(new Set());
 
@@ -333,7 +337,7 @@ function WheelPage() {
       lastUrgent.current = sec;
       void playUrgentTick();
     }
-  }, [banks, timeMatch, scene, turn]);
+  }, [banks, timeMatch, scene, turn, panelOpen]);
 
   useEffect(() => {
     const sim = new WheelPhysics(Math.max(1, slices.length), {
@@ -581,24 +585,36 @@ function WheelPage() {
     const landed = poolPlayers[idx] ?? poolPlayers[0]!;
     lastKidRef.current = landed.name;
     setPicked(landed);
+    setPrompt(null);
+    setRevealStep(0);
     setScene("landed");
     void playNameLock();
-    window.setTimeout(() => {
-      if (deskOpenRef.current) return;
-      const next = pickPrompt(pool, usedWordIds, settings.askDirection);
-      setPrompt(next);
-      if (next) {
-        setUsedWordIds((ids) => new Set(ids).add(next.word.id));
-      }
-      setScene("exiting");
-      window.setTimeout(() => {
-        if (deskOpenRef.current) return;
-        setRevealStep(0);
-        setScene("question");
-      }, 720);
-    }, 700);
   }
   landRef.current = landFromPhysics;
+
+  function playLanded() {
+    if (scene !== "landed" || !picked || deskOpen) return;
+    const next = pickPrompt(pool, usedWordIds, settings.askDirection);
+    setPrompt(next);
+    if (next) {
+      setUsedWordIds((ids) => new Set(ids).add(next.word.id));
+    }
+    setRevealStep(0);
+    setScene("exiting");
+    window.setTimeout(() => {
+      if (deskOpenRef.current) return;
+      setScene("question");
+    }, 720);
+  }
+
+  function skipLanded() {
+    if (scene !== "landed" || !picked || deskOpen) return;
+    setPicked(null);
+    setPrompt(null);
+    setRevealStep(0);
+    setScene("wheel");
+    spin();
+  }
 
   function spin() {
     if (!started || deskOpen || scene === "spinning" || scene === "winner") return;
@@ -650,24 +666,24 @@ function WheelPage() {
       next[picked.team] = (next[picked.team] ?? 0) + pts;
       setScores(next);
       setScoreBurst(picked.team);
-      setPlusFly(picked.team);
+      setScoreFly({ target: picked.team, value: pts, player: picked.name });
       window.setTimeout(() => setScoreBurst(null), 500);
-      window.setTimeout(() => setPlusFly(null), 700);
+      window.setTimeout(() => setScoreFly(null), 700);
     } else {
       setPlayerScores((prev) => {
         const updated = { ...prev, [picked.name]: (prev[picked.name] ?? 0) + pts };
         return updated;
       });
       setScoreBurst(0);
-      setPlusFly(0);
+      setScoreFly({ target: 0, value: pts, player: picked.name });
       window.setTimeout(() => setScoreBurst(null), 500);
-      window.setTimeout(() => setPlusFly(null), 700);
+      window.setTimeout(() => setScoreFly(null), 700);
     }
     return next;
   }
 
   function markCorrect() {
-    if (scene !== "result" || !picked) return;
+    if (scene !== "question" || !picked) return;
     const pts = answerPoints();
     const next = awardPoints(pts);
     void playCorrect();
@@ -675,26 +691,16 @@ function WheelPage() {
   }
 
   function markMiss() {
-    if (scene !== "result") return;
+    if (scene !== "question") return;
     void playMiss();
     finishTurn(scores);
   }
 
-  function markSkip() {
-    if (scene !== "result" || !picked) return;
-    const pts = pointsForSkip(settings);
-    const next = pts > 0 ? awardPoints(pts) : scores;
-    finishTurn(next);
-  }
-
   function revealHint() {
-    if (scene !== "question" || !prompt) return;
+    if (scene !== "question" || !prompt || !answerText) return;
+    const plan = buildRevealPlan(answerText);
+    if (!canRevealMore(revealStep, plan)) return;
     setRevealStep((step) => step + 1);
-  }
-
-  function pressGo() {
-    if (scene !== "question" || !prompt) return;
-    setScene("result");
   }
 
   useEffect(() => {
@@ -703,16 +709,16 @@ function WheelPage() {
       if (tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT") return;
       if (e.code === "Space") {
         e.preventDefault();
-        if (started && !panelOpen && (scene === "wheel" || scene === "landed")) spin();
+        if (started && !panelOpen && scene === "wheel") spin();
+      }
+      if (scene === "landed") {
+        if (e.key === "p" || e.key === "P") playLanded();
+        if (e.key === "s" || e.key === "S") skipLanded();
       }
       if (scene === "question") {
-        if (e.key === "Enter" || e.key === "g" || e.key === "G") pressGo();
         if (e.key === "r" || e.key === "R") revealHint();
-      }
-      if (scene === "result") {
         if (e.key === "1" || e.key === "y" || e.key === "Y") markCorrect();
         if (e.key === "2" || e.key === "n" || e.key === "N") markMiss();
-        if (e.key === "3" || e.key === "s" || e.key === "S") markSkip();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -727,13 +733,8 @@ function WheelPage() {
       : "How do you say this in French?"
     : null;
 
-  const answerPlan = useMemo(
-    () => (answerText ? buildRevealPlan(answerText) : []),
-    [answerText],
-  );
-  const answerFullyRevealed = displayAnswer(answerPlan, revealStep).complete;
-  const pendingPoints = answerPoints();
-  const activeName = scene === "question" || scene === "result" ? (picked?.name ?? null) : null;
+  const activeName = scene === "question" || scene === "landed" ? (picked?.name ?? null) : null;
+  const hintAvailable = answerText ? canRevealMore(revealStep, buildRevealPlan(answerText)) : false;
 
   const activePalette = palettes[picked?.team ?? turn] ?? palettes[0]!;
 
@@ -756,10 +757,7 @@ function WheelPage() {
     setPanelOpen(true);
   }
 
-  const hasScoreEntries = teamsOn
-    ? scores.slice(0, teamCount).some((s) => s > 0)
-    : Object.values(playerScores).some((s) => s > 0);
-  const showScoreRail = started && scene !== "toss" && !deskOpen && hasScoreEntries;
+  const showScoreRail = started && scene !== "toss" && !deskOpen;
 
   return (
     <div className="relative h-dvh overflow-hidden bg-background text-foreground">
@@ -781,9 +779,9 @@ function WheelPage() {
             timeMatch={Boolean(timeMatch)}
             turn={turn}
             burst={scoreBurst}
-            plusFly={plusFly}
-            plusValue={pendingPoints > 0 ? pendingPoints : settings.pointsCorrect}
-            activePlayer={activeName}
+            plusFly={scoreFly?.target ?? null}
+            plusValue={scoreFly?.value ?? 0}
+            activePlayer={scoreFly?.player ?? activeName}
           />
         </aside>
       ) : null}
@@ -796,7 +794,7 @@ function WheelPage() {
           {
             ["--setup-shift"]: !started || panelOpen ? "36rem" : "0px",
             ["--score-rail-width"]: showScoreRail ? "min(18rem, 30vw)" : "0px",
-            ...(scene === "question" || scene === "result"
+            ...(scene === "question"
               ? teamsOn && picked && !deskOpen
                 ? {
                     background: `radial-gradient(ellipse at center, color-mix(in oklch, ${activePalette.fill} 18%, white) 0%, var(--background) 72%)`,
@@ -872,33 +870,10 @@ function WheelPage() {
                 promptText={promptText}
                 answerText={answerText}
                 revealStep={revealStep}
-                onReveal={revealHint}
-                onGo={pressGo}
-                directPoints={settings.pointsCorrect}
-                revealedPoints={settings.pointsRevealed}
-                fullyRevealed={answerFullyRevealed}
-              />
-            </div>
-          ) : null}
-          {started && scene === "result" ? (
-            <div
-              className={`absolute inset-0 z-10 flex ${
-                deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
-              }`}
-              style={{ animation: "vocablab-result-wash 0.35s ease both" }}
-            >
-              <ResultStage
-                name={picked?.name ?? ""}
-                teamColor={teamsOn ? activePalette.fill : "oklch(0.58 0.21 25)"}
-                teamInk={teamsOn ? activePalette.ink : "oklch(0.99 0 0)"}
-                askLabel={askLabel}
-                promptText={promptText}
-                answerText={answerText}
-                pendingPoints={pendingPoints}
-                fullyRevealed={answerFullyRevealed}
+                hintAvailable={hintAvailable}
+                onHint={revealHint}
                 onCorrect={markCorrect}
                 onMiss={markMiss}
-                onSkip={markSkip}
               />
             </div>
           ) : null}
@@ -912,6 +887,31 @@ function WheelPage() {
             </div>
           ) : null}
         </div>
+
+        {started && scene === "landed" && picked ? (
+          <div
+            className={`absolute bottom-7 z-20 flex gap-4 ${
+              deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={skipLanded}
+              disabled={deskOpen}
+              className="rounded-full bg-surface px-12 py-5 font-kids text-2xl font-semibold shadow-lg ring-1 ring-border disabled:opacity-40"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              onClick={playLanded}
+              disabled={deskOpen}
+              className="rounded-full bg-primary px-12 py-5 font-kids text-2xl font-semibold text-primary-foreground shadow-lg disabled:opacity-40"
+            >
+              Play
+            </button>
+          </div>
+        ) : null}
 
         {started && (scene === "wheel" || scene === "spinning") ? (
           <div
@@ -1004,11 +1004,10 @@ function QuestionStage({
   promptText,
   answerText,
   revealStep,
-  onReveal,
-  onGo,
-  directPoints,
-  revealedPoints,
-  fullyRevealed,
+  hintAvailable,
+  onHint,
+  onCorrect,
+  onMiss,
 }: {
   name: string;
   teamColor: string;
@@ -1017,14 +1016,11 @@ function QuestionStage({
   promptText: string | null;
   answerText: string | null;
   revealStep: number;
-  onReveal: () => void;
-  onGo: () => void;
-  directPoints: number;
-  revealedPoints: number;
-  fullyRevealed: boolean;
+  hintAvailable: boolean;
+  onHint: () => void;
+  onCorrect: () => void;
+  onMiss: () => void;
 }) {
-  const hintPoints = fullyRevealed ? 0 : revealStep > 0 ? revealedPoints : directPoints;
-
   return (
     <div className="flex w-full flex-1 flex-col px-8 pb-10 pt-4">
       <div className="mx-auto grid w-full max-w-[92rem] flex-1 items-center gap-x-10 gap-y-6 lg:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)]">
@@ -1063,139 +1059,37 @@ function QuestionStage({
           >
             {promptText}
           </p>
-          <AnswerRevealer
-            answerText={answerText}
-            revealStep={revealStep}
-            onReveal={onReveal}
-            accent={teamColor}
-            ink={teamInk}
-          />
+          <AnswerRevealer answerText={answerText} revealStep={revealStep} accent={teamColor} />
         </div>
       </div>
 
-      <p className="mx-auto mt-4 text-center font-kids text-lg font-semibold text-muted-foreground">
-        {fullyRevealed
-          ? "Answer fully shown — 0 pts if correct"
-          : revealStep > 0
-            ? `Hint used — ${hintPoints} pt${hintPoints === 1 ? "" : "s"} if correct`
-            : `No hints — ${directPoints} pt${directPoints === 1 ? "" : "s"} if correct`}
-      </p>
-
-      <div className="mx-auto mt-auto flex w-full max-w-xl justify-center pt-8">
-        <button
-          type="button"
-          onClick={onGo}
-          className="rounded-full bg-primary px-20 py-5 font-kids text-4xl font-semibold uppercase tracking-wide text-primary-foreground shadow-lg transition hover:brightness-105 active:scale-[0.98]"
-        >
-          Go
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ResultStage({
-  name,
-  teamColor,
-  teamInk,
-  askLabel,
-  promptText,
-  answerText,
-  pendingPoints,
-  fullyRevealed,
-  onCorrect,
-  onMiss,
-  onSkip,
-}: {
-  name: string;
-  teamColor: string;
-  teamInk: string;
-  askLabel: string | null;
-  promptText: string | null;
-  answerText: string | null;
-  pendingPoints: number;
-  fullyRevealed: boolean;
-  onCorrect: () => void;
-  onMiss: () => void;
-  onSkip: () => void;
-}) {
-  return (
-    <div className="flex w-full flex-1 flex-col px-8 pb-10 pt-4">
-      <div className="mx-auto grid w-full max-w-[92rem] flex-1 items-center gap-x-10 gap-y-6 lg:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)]">
-        <div className="min-w-0">
-          {name ? (
-            <p
-              className="inline-block rounded-full px-8 py-2 font-kids font-semibold tracking-tight shadow-lg"
-              style={{
-                background: teamColor,
-                color: teamInk,
-                fontSize: "clamp(2.2rem, 5vw, 3.8rem)",
-              }}
-            >
-              {name}
-            </p>
-          ) : null}
-          <p
-            className="mt-5 font-kids font-semibold leading-[1.12] tracking-tight text-muted-foreground"
-            style={{ fontSize: "clamp(1.6rem, 3.2vw, 2.4rem)" }}
+      <div className="mx-auto mt-auto flex w-full max-w-2xl flex-col items-center gap-3 pt-8">
+        {hintAvailable ? (
+          <button
+            type="button"
+            onClick={onHint}
+            className="rounded-full px-6 py-2 font-kids text-lg font-semibold shadow-sm transition hover:brightness-105 active:scale-[0.98]"
+            style={{ background: teamColor, color: teamInk }}
           >
-            {askLabel}
-          </p>
-        </div>
-
-        <div className="min-w-0 text-left lg:text-right">
-          <p
-            className="font-kids font-semibold leading-[1.08] tracking-tight text-muted-foreground/70"
-            style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}
+            Hint
+          </button>
+        ) : null}
+        <div className="flex w-full gap-4">
+          <button
+            type="button"
+            onClick={onCorrect}
+            className="flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
           >
-            {promptText}
-          </p>
-          {answerText ? (
-            <p
-              className="mt-6 font-kids font-semibold leading-tight tracking-tight"
-              style={{
-                fontSize: "clamp(2.4rem, 6vw, 4.8rem)",
-                color: teamColor,
-                animation: "vocablab-answer-reveal 0.85s cubic-bezier(0.2, 1.15, 0.3, 1) both",
-              }}
-              aria-live="polite"
-            >
-              {answerText}
-            </p>
-          ) : null}
+            Got it
+          </button>
+          <button
+            type="button"
+            onClick={onMiss}
+            className="flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
+          >
+            Missed
+          </button>
         </div>
-      </div>
-
-      <p className="mx-auto mt-4 text-center font-kids text-lg font-semibold text-muted-foreground">
-        {fullyRevealed
-          ? "Answer was fully hinted — mark the result, then spin when ready"
-          : pendingPoints > 0
-            ? `${pendingPoints} pt${pendingPoints === 1 ? "" : "s"} available — mark the result, then spin when ready`
-            : "Mark the result, then spin when ready"}
-      </p>
-
-      <div className="mx-auto mt-auto flex w-full max-w-3xl flex-wrap gap-3 pt-6">
-        <button
-          type="button"
-          onClick={onCorrect}
-          className="min-w-[9rem] flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
-        >
-          Got it
-        </button>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="min-w-[9rem] flex-1 rounded-full bg-secondary py-5 font-kids text-2xl font-semibold text-secondary-foreground ring-1 ring-border"
-        >
-          Skip turn
-        </button>
-        <button
-          type="button"
-          onClick={onMiss}
-          className="min-w-[9rem] flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
-        >
-          Missed
-        </button>
       </div>
     </div>
   );

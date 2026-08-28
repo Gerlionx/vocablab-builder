@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  buildRevealPlan,
-  canRevealMore,
-  displayAnswer,
-  maskText,
-} from "./wheel-answer-reveal.ts";
+import { buildRevealPlan, canRevealMore, displayAnswer, maskText } from "./wheel-answer-reveal.ts";
 
 describe("buildRevealPlan", () => {
   it("reveals multi-word answers word by word", () => {

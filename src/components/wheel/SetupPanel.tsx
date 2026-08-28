@@ -72,7 +72,10 @@ export function SetupPanel({
         {lessons.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             No lessons yet.{" "}
-            <Link to="/game-settings/wheel" className="font-semibold text-primary underline-offset-2 hover:underline">
+            <Link
+              to="/game-settings/wheel"
+              className="font-semibold text-primary underline-offset-2 hover:underline"
+            >
               Prep one in Create
             </Link>
             .
@@ -97,9 +100,7 @@ export function SetupPanel({
         <p className="mt-2 text-xs text-muted-foreground">
           Vocabulary and game mode are locked in the lesson. Edit them under Create → Wheel.
         </p>
-        {saveNote ? (
-          <p className="mt-2 text-sm font-semibold text-success">{saveNote}</p>
-        ) : null}
+        {saveNote ? <p className="mt-2 text-sm font-semibold text-success">{saveNote}</p> : null}
       </div>
 
       <div className="flex gap-1.5">
@@ -107,9 +108,7 @@ export function SetupPanel({
           type="button"
           onClick={onToggleTeams}
           className={`flex-1 rounded-full py-2.5 text-lg font-semibold transition ${
-            teamsOn
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-foreground"
+            teamsOn ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
           }`}
         >
           {teamsOn ? "Teams on" : "Teams"}
@@ -120,9 +119,7 @@ export function SetupPanel({
               type="button"
               onClick={() => setTeamCount(2)}
               className={`rounded-full px-4 text-lg font-semibold ${
-                teamCount === 2
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground"
+                teamCount === 2 ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
               }`}
             >
               2
@@ -131,9 +128,7 @@ export function SetupPanel({
               type="button"
               onClick={() => setTeamCount(3)}
               className={`rounded-full px-4 text-lg font-semibold ${
-                teamCount === 3
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground"
+                teamCount === 3 ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
               }`}
             >
               3

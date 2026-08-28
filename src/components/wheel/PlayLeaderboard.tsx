@@ -34,21 +34,20 @@ export function PlayLeaderboard({
   activePlayer: string | null;
 }) {
   if (teamsOn) {
-    const visibleTeams = palettes
-      .slice(0, teamCount)
-      .map((color, i) => ({ color, i, score: scores[i] ?? 0 }))
-      .filter((entry) => entry.score > 0);
-
-    if (visibleTeams.length === 0) return null;
+    const teams = palettes.slice(0, teamCount).map((color, i) => ({
+      color,
+      i,
+      score: scores[i] ?? 0,
+    }));
 
     return (
       <ol
-        className="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain px-4 py-16 sm:px-5"
+        className="flex min-h-0 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 py-16 sm:px-5"
         aria-live="polite"
         aria-relevant="additions text"
         aria-label="Scores"
       >
-        {visibleTeams.map(({ color, i, score }) => (
+        {teams.map(({ color, i, score }) => (
           <ScoreRow
             key={color.id}
             label={color.label}
@@ -69,14 +68,11 @@ export function PlayLeaderboard({
   const nameIndex = new Map(players.map((p, i) => [p.name, i]));
   const ranked = [...players]
     .map((p) => ({ name: p.name, score: playerScores[p.name] ?? 0 }))
-    .filter((entry) => entry.score > 0)
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
-
-  if (ranked.length === 0) return null;
 
   return (
     <ol
-      className="flex min-h-0 flex-col gap-2 overflow-y-auto overscroll-contain px-4 py-16 sm:px-5"
+      className="flex min-h-0 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 py-16 sm:px-5"
       aria-live="polite"
       aria-relevant="additions text"
       aria-label="Scores"
@@ -139,26 +135,23 @@ function ScoreRow({
   enterKey: string;
 }) {
   const entering = useEnterAnimation(enterKey);
+  const ptsLabel = score === 1 ? "1 pt" : `${score} pts`;
 
   return (
     <li
       className={`relative list-none ${entering ? "vocablab-leaderboard-enter" : ""}`}
-      aria-label={`${label}, ${score} points`}
+      aria-label={`${label}, ${ptsLabel}`}
     >
       <span
-        className="inline-flex w-full min-w-0 items-center justify-between gap-3 rounded-full px-3 py-1.5 font-kids text-sm font-semibold shadow-sm"
-        style={{ background: fill, color: ink }}
+        className="inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-full px-3 py-1.5 font-kids text-sm font-semibold shadow-sm"
+        style={{
+          background: fill,
+          color: ink,
+          animation: burst ? "vocablab-score-burst 0.45s ease" : undefined,
+        }}
       >
         <span className="min-w-0 truncate">{label}</span>
-        <span
-          className="shrink-0 tabular-nums leading-none"
-          style={{
-            fontSize: "clamp(1.35rem, 2.8vw, 1.75rem)",
-            animation: burst ? "vocablab-score-burst 0.45s ease" : undefined,
-          }}
-        >
-          {score}
-        </span>
+        <span className="shrink-0 tabular-nums leading-none">{ptsLabel}</span>
       </span>
       {clock != null ? (
         <span
@@ -173,7 +166,7 @@ function ScoreRow({
       ) : null}
       {plus != null ? (
         <span
-          className="pointer-events-none absolute right-2 top-0 font-kids text-xl font-semibold"
+          className="pointer-events-none absolute right-2 top-0 font-kids text-sm font-semibold"
           style={{
             color: fill,
             animation: "vocablab-float-plus 0.7s ease forwards",

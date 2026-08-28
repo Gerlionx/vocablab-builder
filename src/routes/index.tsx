@@ -29,9 +29,7 @@ function LoginPage() {
   return (
     <div className="grid min-h-screen place-items-center bg-background px-6 text-foreground">
       <div className="w-full max-w-sm">
-        <h1 className="mb-10 text-center text-2xl font-medium tracking-tight">
-          Vocablab
-        </h1>
+        <h1 className="mb-10 text-center text-2xl font-medium tracking-tight">Vocablab</h1>
 
         <form
           onSubmit={(e) => {
@@ -42,10 +40,7 @@ function LoginPage() {
           className="space-y-4 rounded-3xl bg-surface/60 p-8 ring-1 ring-border"
         >
           <div>
-            <label
-              htmlFor="email"
-              className="mb-1.5 ml-1 block text-sm font-medium"
-            >
+            <label htmlFor="email" className="mb-1.5 ml-1 block text-sm font-medium">
               Email
             </label>
             <input
@@ -57,10 +52,7 @@ function LoginPage() {
           </div>
 
           <div className="pb-2">
-            <label
-              htmlFor="password"
-              className="mb-1.5 ml-1 block text-sm font-medium"
-            >
+            <label htmlFor="password" className="mb-1.5 ml-1 block text-sm font-medium">
               Password
             </label>
             <input

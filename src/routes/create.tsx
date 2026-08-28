@@ -48,9 +48,7 @@ function CreatePage() {
                   "conic-gradient(var(--wheel-1) 0deg 60deg, var(--wheel-2) 60deg 120deg, var(--wheel-3) 120deg 180deg, var(--wheel-4) 180deg 240deg, var(--wheel-5) 240deg 300deg, var(--wheel-6) 300deg 360deg)",
               }}
             />
-            <h2 className="mt-6 text-xl font-semibold tracking-tight">
-              Wheel of names
-            </h2>
+            <h2 className="mt-6 text-xl font-semibold tracking-tight">Wheel of names</h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Spin to pick a student for oral practice.
             </p>

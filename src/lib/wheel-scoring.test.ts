@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { WheelSettings } from "./game-settings.ts";
-import { pointsForAnswer, pointsForSkip } from "./wheel-scoring.ts";
+import { pointsForAnswer, pointsForSkip, remainingPoints } from "./wheel-scoring.ts";
 
 const settings: WheelSettings = {
   gameMode: "basic",
@@ -15,17 +15,25 @@ const settings: WheelSettings = {
 };
 
 describe("wheel scoring", () => {
-  it("awards direct points without reveal hints", () => {
+  it("starts with full points before any hint", () => {
+    assert.equal(remainingPoints(settings, 0), 3);
     assert.equal(pointsForAnswer(settings, 0), 3);
   });
 
-  it("awards fewer points after one reveal hint", () => {
-    assert.equal(pointsForAnswer(settings, 1), 1);
+  it("reduces available score by one per hint click", () => {
+    assert.equal(remainingPoints(settings, 1), 2);
+    assert.equal(pointsForAnswer(settings, 1), 2);
+    assert.equal(remainingPoints(settings, 2), 1);
+    assert.equal(pointsForAnswer(settings, 2), 1);
   });
 
   it("awards zero when hints fully revealed the answer", () => {
-    assert.equal(pointsForAnswer(settings, 2, true), 0);
+    assert.equal(remainingPoints(settings, 0, true), 0);
     assert.equal(pointsForAnswer(settings, 1, true), 0);
+  });
+
+  it("never goes below zero", () => {
+    assert.equal(remainingPoints(settings, 5), 0);
   });
 
   it("defaults skip to zero points", () => {
