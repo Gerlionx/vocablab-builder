@@ -2,7 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppChrome } from "@/components/AppChrome";
 import { endTeacherSession } from "@/lib/teacher-session";
-import { changePasswordFn, getSessionFn, logoutFn } from "@/lib/api/auth";
+import {
+  changeEmailFn,
+  changePasswordFn,
+  getSessionFn,
+  logoutFn,
+} from "@/lib/api/auth";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
@@ -10,12 +15,12 @@ export const Route = createFileRoute("/account")({
       { title: "Profile — Vocablab" },
       {
         name: "description",
-        content: "Manage your Vocablab teacher profile and change your password.",
+        content: "Manage your Vocablab teacher profile, email, and password.",
       },
       { property: "og:title", content: "Profile — Vocablab" },
       {
         property: "og:description",
-        content: "Manage your Vocablab teacher profile and change your password.",
+        content: "Manage your Vocablab teacher profile, email, and password.",
       },
     ],
   }),
@@ -24,16 +29,26 @@ export const Route = createFileRoute("/account")({
 
 function ProfilePage() {
   const [profile, setProfile] = useState<{ email: string; displayName: string } | null>(null);
+
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwMsg, setPwMsg] = useState<string | null>(null);
   const [pwError, setPwError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [pwBusy, setPwBusy] = useState(false);
 
   useEffect(() => {
     void getSessionFn().then((t) => {
-      if (t) setProfile({ email: t.email, displayName: t.displayName });
+      if (t) {
+        setProfile({ email: t.email, displayName: t.displayName });
+        setNewEmail(t.email);
+      }
     });
   }, []);
 
@@ -53,10 +68,88 @@ function ProfilePage() {
         </p>
 
         <section className="mt-12">
+          <h2 className="text-lg font-semibold tracking-tight">Change email</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Update the address you use to sign in. Confirm with your current password.
+          </p>
+          <form
+            className="mt-5 space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setEmailMsg(null);
+              setEmailError(null);
+              const trimmed = newEmail.trim();
+              if (!trimmed.includes("@")) {
+                setEmailError("Enter a valid email address.");
+                return;
+              }
+              setEmailBusy(true);
+              void (async () => {
+                try {
+                  const result = await changeEmailFn({
+                    data: { newEmail: trimmed, currentPassword: emailPassword },
+                  });
+                  setProfile((p) =>
+                    p ? { ...p, email: result.email } : { email: result.email, displayName: "Teacher" },
+                  );
+                  setNewEmail(result.email);
+                  setEmailPassword("");
+                  setEmailMsg("Email updated.");
+                } catch (err) {
+                  const status = err instanceof Response ? err.status : 0;
+                  if (status === 409) setEmailError("That email is already in use.");
+                  else if (status === 400) setEmailError("Check the email and your current password.");
+                  else setEmailError("Could not update email. Check your password and try again.");
+                } finally {
+                  setEmailBusy(false);
+                }
+              })();
+            }}
+          >
+            <div>
+              <label htmlFor="new-email" className="mb-1.5 ml-1 block text-sm font-medium">
+                Email
+              </label>
+              <input
+                id="new-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label htmlFor="email-password" className="mb-1.5 ml-1 block text-sm font-medium">
+                Current password
+              </label>
+              <input
+                id="email-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={emailPassword}
+                onChange={(e) => setEmailPassword(e.target.value)}
+                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={emailBusy}
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            >
+              {emailBusy ? "Saving…" : "Save email"}
+            </button>
+            {emailError ? <p className="text-sm text-destructive">{emailError}</p> : null}
+            {emailMsg ? <p className="text-sm text-success">{emailMsg}</p> : null}
+          </form>
+        </section>
+
+        <section className="mt-12">
           <h2 className="text-lg font-semibold tracking-tight">Change password</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Enter your current password, then choose a new one (at least 8 characters).
-            Email recovery will arrive later.
           </p>
           <form
             className="mt-5 space-y-3"
@@ -72,7 +165,7 @@ function ProfilePage() {
                 setPwError("New password must be at least 8 characters.");
                 return;
               }
-              setBusy(true);
+              setPwBusy(true);
               void (async () => {
                 try {
                   await changePasswordFn({
@@ -85,7 +178,7 @@ function ProfilePage() {
                 } catch {
                   setPwError("Could not update password. Check your current password.");
                 } finally {
-                  setBusy(false);
+                  setPwBusy(false);
                 }
               })();
             }}
@@ -136,10 +229,10 @@ function ProfilePage() {
             </div>
             <button
               type="submit"
-              disabled={busy}
+              disabled={pwBusy}
               className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              {busy ? "Saving…" : "Save password"}
+              {pwBusy ? "Saving…" : "Save password"}
             </button>
             {pwError ? <p className="text-sm text-destructive">{pwError}</p> : null}
             {pwMsg ? <p className="text-sm text-success">{pwMsg}</p> : null}
