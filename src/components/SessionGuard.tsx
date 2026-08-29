@@ -26,8 +26,15 @@ export function SessionGuard() {
 
     if (publicRoute) return;
 
-    const onActivity = () => touchTeacherActivity();
-    const windowEvents = ["pointerdown", "keydown", "mousemove", "touchstart", "scroll"] as const;
+    let raf = 0;
+    const onActivity = () => {
+      if (raf) return;
+      raf = window.requestAnimationFrame(() => {
+        raf = 0;
+        touchTeacherActivity();
+      });
+    };
+    const windowEvents = ["pointerdown", "keydown", "touchstart"] as const;
     for (const ev of windowEvents) window.addEventListener(ev, onActivity, { passive: true });
     document.addEventListener("visibilitychange", onActivity);
 
@@ -36,9 +43,10 @@ export function SessionGuard() {
         endTeacherSession();
         navigate({ to: "/login" });
       }
-    }, 10_000);
+    }, 15_000);
 
     return () => {
+      if (raf) window.cancelAnimationFrame(raf);
       for (const ev of windowEvents) window.removeEventListener(ev, onActivity);
       document.removeEventListener("visibilitychange", onActivity);
       window.clearInterval(tick);

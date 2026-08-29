@@ -15,5 +15,8 @@ export default defineConfig({
   // Cerberus Docker image runs Node — not Cloudflare Workers.
   nitro: {
     preset: "node-server",
+    // Precompress hashed assets so browsers receive gzip/brotli even when the
+    // edge proxy has no `encode` directive.
+    compressPublicAssets: true,
   },
 });

@@ -10,6 +10,9 @@ vocablab.unifiedops.cloud {
 		format json
 	}
 
+	# Compress HTML/JS/CSS — without this, hashed assets ship uncompressed (~3× larger).
+	encode zstd gzip
+
 	header {
 		Strict-Transport-Security "max-age=15552000; includeSubDomains"
 	}

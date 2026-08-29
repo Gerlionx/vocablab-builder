@@ -28,10 +28,12 @@ import {
   splitTeams,
   teamSlicePaint,
 } from "@/lib/team-colors";
-import { SEED_WORDS, filterWords, type Word } from "@/lib/vocab-data";
+import { filterWords } from "@/lib/vocab-filter";
+import type { Word } from "@/lib/vocab-data";
+import { listWordsFn } from "@/lib/api/words";
+import { loadPersistedWordBank, savePersistedWordBank } from "@/lib/vocab-backup";
 import { resolveImageSrc } from "@/lib/image-library";
 import { pickPrompt, wheelPlayableWords } from "@/lib/wheel-prompt";
-import { applyWordPatches } from "@/lib/word-patches";
 import { hydrateTeacherCloud } from "@/lib/teacher-cloud";
 import {
   readSessionNames,
@@ -213,6 +215,9 @@ function WheelPage() {
   const [showKind, setShowKind] = useState<ShowKind | null>(null);
   const [showPts, setShowPts] = useState(0);
   const [matchEnding, setMatchEnding] = useState(false);
+  const [bankWords, setBankWords] = useState<Word[]>(
+    () => loadPersistedWordBank() ?? [],
+  );
 
   const angleRef = useRef(0);
   const physicsRef = useRef<WheelPhysics | null>(null);
@@ -266,6 +271,16 @@ function WheelPage() {
     void hydrateTeacherCloud()
       .then(() => setLessons(listWheelLessons()))
       .catch(() => {});
+    void listWordsFn()
+      .then((remote) => {
+        if (remote.length) {
+          setBankWords(remote);
+          savePersistedWordBank(remote);
+        }
+      })
+      .catch(() => {
+        /* keep cached bank */
+      });
     const boot = lastWheelLesson();
     let nextSettings = boot ? lessonToSettings(boot) : loadWheelSettings();
     if (boot) {
@@ -406,8 +421,9 @@ function WheelPage() {
   ]);
 
   const pool = useMemo(() => {
+    if (!bankWords.length) return [];
     const matched = wheelPlayableWords(
-      filterWords(applyWordPatches(SEED_WORDS), {
+      filterWords(bankWords, {
         years,
         terms,
         topics,
@@ -416,7 +432,7 @@ function WheelPage() {
     );
     const excluded = new Set(activeLesson?.excludedWordIds ?? []);
     return excluded.size ? matched.filter((w) => !excluded.has(w.id)) : matched;
-  }, [years, terms, topics, difficulties, activeLesson?.excludedWordIds]);
+  }, [bankWords, years, terms, topics, difficulties, activeLesson?.excludedWordIds]);
 
   const allNames = useMemo(() => parseNames(namesText), [namesText]);
 

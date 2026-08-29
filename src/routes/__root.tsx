@@ -98,9 +98,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "icon", href: "/favicon.png", type: "image/png", sizes: "48x48" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;500;600;700&family=Lora:wght@400;600&display=swap",
+        // Fewer weights = less font payload; display=swap keeps text visible while loading.
+        href: "https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;600&family=Lora:wght@400;600&display=swap",
       },
     ],
   }),
