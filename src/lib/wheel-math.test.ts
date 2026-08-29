@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { KISS_DEG, pegOffsetLocal, pointerLocal, winnerIndex } from "./wheel-math.ts";
+import {
+  KISS_DEG,
+  formatClock,
+  pegOffsetLocal,
+  pointerLocal,
+  spinDelta,
+  spinPlan,
+  spinSample,
+  winnerIndex,
+} from "./wheel-math.ts";
 
 function angleForLocal(local: number) {
   return (90 - local + 360) % 360;
@@ -67,5 +76,37 @@ describe("winnerIndex pointer mapping", () => {
       assert.ok(Math.abs(pointerLocal(angle) - local) < 1e-6);
       assert.equal(winnerIndex(angle, n), i);
     }
+  });
+});
+
+describe("formatClock", () => {
+  it("formats mm:ss with ceil and a floor of zero", () => {
+    assert.equal(formatClock(0), "0:00");
+    assert.equal(formatClock(-3), "0:00");
+    assert.equal(formatClock(65), "1:05");
+    assert.equal(formatClock(9.1), "0:10");
+    assert.equal(formatClock(59.01), "1:00");
+  });
+});
+
+describe("spinPlan basics", () => {
+  it("returns several full turns plus a positive duration", () => {
+    for (let i = 0; i < 20; i++) {
+      const plan = spinPlan(10, i % 8, 8);
+      assert.ok(plan.extra >= 5 * 360);
+      assert.ok(plan.duration >= 4300);
+      assert.ok(plan.duration <= 9200);
+      assert.equal(typeof plan.crawl, "boolean");
+      assert.ok(plan.overshoot >= 0);
+      assert.ok(spinDelta(10, i % 8, 8) >= 5 * 360);
+    }
+  });
+
+  it("samples from start toward start+extra", () => {
+    const start = 40;
+    const extra = 720;
+    assert.equal(spinSample(0, start, extra, 0, false), start);
+    assert.ok(spinSample(1, start, extra, 0, false) >= start + extra - 1e-6);
+    assert.ok(spinSample(0.5, start, extra, 0, false) > start);
   });
 });

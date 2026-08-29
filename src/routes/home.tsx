@@ -27,6 +27,8 @@ function HomePage() {
       <main className="flex min-h-[calc(100vh-88px)] flex-col items-center justify-center px-6">
         <h1 className="sr-only">Vocablab home</h1>
         <Link to="/create" className="vocablab-activity-orb" aria-label="Open Activity">
+          <span className="vocablab-activity-orb-glow" aria-hidden="true" />
+          <span className="vocablab-activity-orb-ring" aria-hidden="true" />
           <span className="vocablab-activity-orb-face" aria-hidden="true" />
           <span className="vocablab-activity-orb-label font-kids">Activity</span>
         </Link>

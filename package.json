@@ -11,13 +11,14 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --experimental-strip-types --test src/lib/wheel-answer-reveal.test.ts src/lib/wheel-math.test.ts src/lib/wheel-scoring.test.ts src/lib/wheel-score-race.test.ts src/lib/wheel-turn-flow.test.ts src/lib/wheel-prompt.test.ts src/lib/vocab-filter.test.ts src/lib/vocab-backup.test.ts src/lib/wheel-time-bank.test.ts src/lib/wheel-play-mode.test.ts"
+    "test": "node --experimental-strip-types --import ./scripts/register-node-test-aliases.mjs --test src/lib/wheel-answer-reveal.test.ts src/lib/wheel-math.test.ts src/lib/wheel-scoring.test.ts src/lib/wheel-score-race.test.ts src/lib/wheel-turn-flow.test.ts src/lib/wheel-prompt.test.ts src/lib/vocab-filter.test.ts src/lib/vocab-backup.test.ts src/lib/wheel-time-bank.test.ts src/lib/wheel-play-mode.test.ts src/lib/wheel-modes.test.ts src/lib/parse-names.test.ts src/lib/teacher-session.test.ts src/lib/game-settings.test.ts src/lib/wheel-lessons.test.ts src/lib/word-patches.test.ts src/lib/team-colors.test.ts src/lib/vocab-data.test.ts src/lib/wheel-game-sim.test.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@node-rs/argon2": "^2.1.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.8",
@@ -57,6 +58,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.575.0",
     "matter-js": "^0.20.0",
+    "postgres": "^3.4.9",
     "react": "^19.2.0",
     "react-day-picker": "^9.14.0",
     "react-dom": "^19.2.0",
@@ -79,13 +81,14 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.2.0",
+    "destr": "^2.0.5",
     "eslint": "^9.32.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-prettier": "^5.2.6",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
-    "nitro": "3.0.260603-beta",
+    "nitro": "^3.0.260603-beta",
     "prettier": "^3.7.3",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",

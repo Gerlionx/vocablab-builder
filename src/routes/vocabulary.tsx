@@ -23,6 +23,7 @@ import {
   type VocabMergePlan,
 } from "@/lib/vocab-backup";
 import { applyWordPatches, saveWordPatch } from "@/lib/word-patches";
+import { importSeedWordsFn, listWordsFn } from "@/lib/api/words";
 
 export const Route = createFileRoute("/vocabulary")({
   head: () => ({
@@ -81,6 +82,40 @@ function VocabularyPage() {
     plan: VocabMergePlan;
   }>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Prefer Postgres bank when the teacher session is valid; seed once if empty.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        let remote = await listWordsFn();
+        if (remote.length === 0) {
+          await importSeedWordsFn({
+            data: {
+              words: SEED_WORDS.map((w) => ({
+                year: w.year,
+                term: w.term,
+                topic: w.topic,
+                difficulty: w.difficulty,
+                french: w.french,
+                english: w.english,
+                image: w.image,
+              })),
+            },
+          });
+          remote = await listWordsFn();
+        }
+        if (!cancelled && remote.length) {
+          commitWords(remote);
+        }
+      } catch {
+        /* offline / unauthenticated — keep local bank */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function commitWords(next: Word[]) {
     setWords(next);

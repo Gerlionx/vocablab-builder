@@ -1,119 +1,158 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppChrome } from "@/components/AppChrome";
 import { endTeacherSession } from "@/lib/teacher-session";
+import { changePasswordFn, getSessionFn, logoutFn } from "@/lib/api/auth";
 
 export const Route = createFileRoute("/account")({
   head: () => ({
     meta: [
-      { title: "Account & invitations — Vocablab" },
+      { title: "Profile — Vocablab" },
       {
         name: "description",
-        content:
-          "Invite a colleague to Vocablab and see which invitations are pending or accepted.",
+        content: "Manage your Vocablab teacher profile and change your password.",
       },
-      { property: "og:title", content: "Account & invitations — Vocablab" },
+      { property: "og:title", content: "Profile — Vocablab" },
       {
         property: "og:description",
-        content:
-          "Invite a colleague to Vocablab and see which invitations are pending or accepted.",
+        content: "Manage your Vocablab teacher profile and change your password.",
       },
     ],
   }),
-  component: AccountPage,
+  component: ProfilePage,
 });
 
-type Invite = { email: string; status: "Pending" | "Accepted" };
+function ProfilePage() {
+  const [profile, setProfile] = useState<{ email: string; displayName: string } | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-const SEED: Invite[] = [
-  { email: "david.smith@school.ac.uk", status: "Pending" },
-  { email: "sarah.jones@school.ac.uk", status: "Accepted" },
-  { email: "h.patel@school.ac.uk", status: "Accepted" },
-];
-
-function AccountPage() {
-  const [invites, setInvites] = useState<Invite[]>(SEED);
-  const [email, setEmail] = useState("");
+  useEffect(() => {
+    void getSessionFn().then((t) => {
+      if (t) setProfile({ email: t.email, displayName: t.displayName });
+    });
+  }, []);
 
   return (
     <AppChrome>
-      <main className="mx-auto max-w-2xl px-6 pb-24 pt-8">
+      <main className="mx-auto max-w-lg px-6 pb-24 pt-8">
         <Link
           to="/home"
           className="mb-3 inline-block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
         >
           &larr; Back to home
         </Link>
-        <h1 className="text-4xl font-medium tracking-tight">Account</h1>
+        <h1 className="text-4xl font-medium tracking-tight">Profile</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Signed in as Dorina · dorina.crisan@gmail.com
+          {profile?.displayName ?? "Teacher"}
+          {profile?.email ? ` · ${profile.email}` : ""}
         </p>
 
         <section className="mt-12">
-          <h2 className="text-lg font-semibold tracking-tight">Invite a teacher</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Change password</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter your current password, then choose a new one (at least 8 characters).
+            Email recovery will arrive later.
+          </p>
           <form
+            className="mt-5 space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (!email.trim()) return;
-              setInvites((prev) => [{ email: email.trim(), status: "Pending" }, ...prev]);
-              setEmail("");
+              setPwMsg(null);
+              setPwError(null);
+              if (newPassword !== confirmPassword) {
+                setPwError("New passwords do not match.");
+                return;
+              }
+              if (newPassword.length < 8) {
+                setPwError("New password must be at least 8 characters.");
+                return;
+              }
+              setBusy(true);
+              void (async () => {
+                try {
+                  await changePasswordFn({
+                    data: { currentPassword, newPassword },
+                  });
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setConfirmPassword("");
+                  setPwMsg("Password updated.");
+                } catch {
+                  setPwError("Could not update password. Check your current password.");
+                } finally {
+                  setBusy(false);
+                }
+              })();
             }}
-            className="mt-4 flex gap-2"
           >
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="colleague@school.ac.uk"
-              className="flex-1 rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <div>
+              <label htmlFor="current-password" className="mb-1.5 ml-1 block text-sm font-medium">
+                Current password
+              </label>
+              <input
+                id="current-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label htmlFor="new-password" className="mb-1.5 ml-1 block text-sm font-medium">
+                New password
+              </label>
+              <input
+                id="new-password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label htmlFor="confirm-password" className="mb-1.5 ml-1 block text-sm font-medium">
+                Confirm new password
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                autoComplete="new-password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
             <button
               type="submit"
-              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-transform hover:opacity-90 active:scale-[0.98]"
+              disabled={busy}
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              Send
+              {busy ? "Saving…" : "Save password"}
             </button>
+            {pwError ? <p className="text-sm text-destructive">{pwError}</p> : null}
+            {pwMsg ? <p className="text-sm text-success">{pwMsg}</p> : null}
           </form>
-        </section>
-
-        <section className="mt-12">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Invitations
-          </h2>
-          <ul className="mt-4">
-            {invites.map((inv) => (
-              <li
-                key={inv.email}
-                className="flex items-center justify-between border-b border-line py-3.5"
-              >
-                <span className="text-sm font-medium">{inv.email}</span>
-                <span className="flex items-center gap-3">
-                  {inv.status === "Pending" ? (
-                    <>
-                      <Link
-                        to="/set-password"
-                        className="rounded-md bg-surface px-2.5 py-1 text-xs font-medium text-muted-foreground ring-1 ring-border transition-colors hover:text-foreground"
-                      >
-                        Accept invite
-                      </Link>
-                      <span className="text-xs text-muted-foreground">Pending</span>
-                    </>
-                  ) : (
-                    <span className="rounded-md bg-success/10 px-2.5 py-1 text-xs font-medium text-success">
-                      Accepted
-                    </span>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
         </section>
 
         <div className="mt-16">
           <Link
             to="/"
-            onClick={() => endTeacherSession()}
+            onClick={() => {
+              void logoutFn();
+              endTeacherSession();
+            }}
             className="text-sm font-medium text-destructive transition-opacity hover:opacity-80"
           >
             Log out

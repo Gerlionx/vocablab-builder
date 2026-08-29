@@ -1335,9 +1335,275 @@
   letter-spacing: -0.04em;
 }
 
-/* ——— Home Activity orb: logo-matched cream disc ——— */
+.vocablab-logo.is-hero .vocablab-logo-word {
+  font-size: clamp(3.4rem, 11vw, 6.25rem);
+  letter-spacing: -0.035em;
+}
+
+.vocablab-logo.is-hero .vocablab-logo-word > span {
+  animation: vocablab-landing-letter 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(1) { animation-delay: 0.05s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(2) { animation-delay: 0.1s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(3) { animation-delay: 0.15s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(4) { animation-delay: 0.2s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(5) { animation-delay: 0.25s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(6) { animation-delay: 0.3s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(7) { animation-delay: 0.35s; }
+.vocablab-logo.is-hero .vocablab-logo-word > span:nth-child(8) { animation-delay: 0.4s; }
+
+@keyframes vocablab-landing-letter {
+  from {
+    opacity: 0;
+    transform: translateY(0.35em);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ——— Public landing ——— */
+.vocablab-landing {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  overflow: hidden;
+  color: var(--foreground);
+  background:
+    radial-gradient(120% 90% at 50% -10%, oklch(0.94 0.04 210 / 0.9), transparent 55%),
+    radial-gradient(80% 60% at 100% 100%, oklch(0.9 0.05 180 / 0.45), transparent 50%),
+    linear-gradient(165deg, oklch(0.97 0.02 220), oklch(0.93 0.03 235) 48%, oklch(0.95 0.025 200));
+}
+
+.vocablab-landing-atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.vocablab-landing-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(2px);
+  opacity: 0.55;
+  animation: vocablab-landing-drift 18s ease-in-out infinite alternate;
+}
+
+.vocablab-landing-orb-a {
+  width: min(42vw, 22rem);
+  height: min(42vw, 22rem);
+  top: 8%;
+  left: -6%;
+  background: color-mix(in oklch, var(--wheel-2) 42%, transparent);
+  animation-duration: 22s;
+}
+
+.vocablab-landing-orb-b {
+  width: min(36vw, 18rem);
+  height: min(36vw, 18rem);
+  right: -4%;
+  bottom: 12%;
+  background: color-mix(in oklch, var(--wheel-4) 38%, transparent);
+  animation-duration: 16s;
+  animation-delay: -4s;
+}
+
+.vocablab-landing-orb-c {
+  width: min(28vw, 14rem);
+  height: min(28vw, 14rem);
+  top: 42%;
+  left: 58%;
+  background: color-mix(in oklch, var(--wheel-6) 28%, transparent);
+  animation-duration: 20s;
+  animation-delay: -8s;
+}
+
+.vocablab-landing-wheel {
+  position: absolute;
+  width: min(78vmin, 34rem);
+  height: min(78vmin, 34rem);
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in oklch, var(--foreground) 8%, transparent);
+  background:
+    conic-gradient(
+      from 12deg,
+      color-mix(in oklch, var(--wheel-1) 18%, transparent),
+      color-mix(in oklch, var(--wheel-2) 16%, transparent),
+      color-mix(in oklch, var(--wheel-3) 18%, transparent),
+      color-mix(in oklch, var(--wheel-4) 16%, transparent),
+      color-mix(in oklch, var(--wheel-5) 14%, transparent),
+      color-mix(in oklch, var(--wheel-6) 16%, transparent),
+      color-mix(in oklch, var(--wheel-1) 18%, transparent)
+    );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3.2rem), #000 calc(100% - 3.15rem));
+  opacity: 0.55;
+  animation: vocablab-landing-spin 72s linear infinite;
+}
+
+.vocablab-landing-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+.vocablab-landing-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1.25rem, 3.5vh, 2rem);
+  padding: 2rem 1.5rem 3rem;
+  text-align: center;
+  max-width: 40rem;
+}
+
+.vocablab-landing-line {
+  margin: 0;
+  max-width: 22rem;
+  font-family: Lora, ui-serif, Georgia, serif;
+  font-size: clamp(1.05rem, 2.4vw, 1.3rem);
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: color-mix(in oklch, var(--foreground) 72%, transparent);
+  animation: vocablab-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.45s both;
+}
+
+.vocablab-landing-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.35rem;
+  min-width: 9.5rem;
+  padding: 0.85rem 1.85rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  box-shadow:
+    0 1px 0 color-mix(in oklch, white 35%, transparent) inset,
+    0 14px 32px color-mix(in oklch, var(--primary) 28%, transparent);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+  animation: vocablab-landing-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.62s both;
+}
+
+.vocablab-landing-cta:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 color-mix(in oklch, white 40%, transparent) inset,
+    0 18px 40px color-mix(in oklch, var(--primary) 34%, transparent);
+  opacity: 0.96;
+}
+
+.vocablab-landing-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.vocablab-landing-cta:focus-visible {
+  outline: 3px solid color-mix(in oklch, var(--ring) 70%, white);
+  outline-offset: 3px;
+}
+
+@keyframes vocablab-landing-rise {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes vocablab-landing-drift {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(4%, -5%, 0) scale(1.06);
+  }
+}
+
+@keyframes vocablab-landing-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vocablab-logo.is-hero .vocablab-logo-word > span,
+  .vocablab-landing-line,
+  .vocablab-landing-cta,
+  .vocablab-landing-orb,
+  .vocablab-landing-wheel {
+    animation: none;
+  }
+}
+
+/* ——— Login shell ——— */
+.vocablab-login-shell {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: 1.5rem;
+  color: var(--foreground);
+  background:
+    radial-gradient(90% 70% at 50% 0%, oklch(0.95 0.03 220 / 0.8), transparent 55%),
+    var(--background);
+}
+
+.vocablab-login-panel {
+  width: 100%;
+  max-width: 22rem;
+}
+
+.vocablab-login-brand {
+  display: flex;
+  justify-content: center;
+  text-decoration: none;
+  margin-bottom: 1.75rem;
+}
+
+.vocablab-login-kicker {
+  margin: 0 0 1.25rem;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.vocablab-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  background: color-mix(in oklch, var(--surface) 75%, white);
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+/* ——— Home Activity orb ——— */
 .vocablab-activity-orb {
-  --orb-size: clamp(11.5rem, 28vw, 14rem);
+  --orb-size: clamp(12.5rem, 30vw, 15.5rem);
   position: relative;
   display: grid;
   place-items: center;
@@ -1347,11 +1613,11 @@
   border-radius: 50%;
   background: transparent;
   text-decoration: none;
-  transition: transform 0.22s ease;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .vocablab-activity-orb:hover {
-  transform: translateY(-2px);
+  transform: translateY(-4px) scale(1.02);
 }
 
 .vocablab-activity-orb:active {
@@ -1359,45 +1625,109 @@
 }
 
 .vocablab-activity-orb:focus-visible {
-  outline: 3px solid oklch(0.72 0.12 250 / 55%);
-  outline-offset: 5px;
+  outline: 3px solid color-mix(in oklch, var(--wheel-2) 65%, white);
+  outline-offset: 6px;
+}
+
+.vocablab-activity-orb-glow {
+  position: absolute;
+  inset: -18%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 25%, color-mix(in oklch, var(--wheel-1) 35%, transparent), transparent 55%),
+    radial-gradient(circle at 75% 70%, color-mix(in oklch, var(--wheel-2) 32%, transparent), transparent 52%),
+    radial-gradient(circle at 50% 90%, color-mix(in oklch, var(--wheel-4) 28%, transparent), transparent 50%);
+  filter: blur(6px);
+  opacity: 0.85;
+  pointer-events: none;
+  animation: vocablab-activity-glow 5.5s ease-in-out infinite alternate;
+}
+
+.vocablab-activity-orb-ring {
+  position: absolute;
+  inset: -0.35rem;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 20deg,
+    var(--wheel-1),
+    var(--wheel-2),
+    var(--wheel-3),
+    var(--wheel-4),
+    var(--wheel-6),
+    var(--wheel-1)
+  );
+  mask: radial-gradient(farthest-side, transparent calc(100% - 0.55rem), #000 calc(100% - 0.52rem));
+  opacity: 0.92;
+  pointer-events: none;
+  animation: vocablab-activity-ring 18s linear infinite;
 }
 
 .vocablab-activity-orb-face {
   position: absolute;
-  inset: 0;
+  inset: 0.35rem;
   border-radius: 50%;
-  /* Cream + navy disc (independent of the text wordmark) */
   background:
-    radial-gradient(circle at 32% 28%, oklch(1 0 0) 0%, oklch(0.995 0.005 95) 42%, oklch(0.97 0.01 220) 100%);
-  border: 3px solid oklch(0.32 0.06 250);
+    radial-gradient(circle at 32% 26%, oklch(1 0.01 95) 0%, transparent 42%),
+    linear-gradient(
+      155deg,
+      color-mix(in oklch, var(--wheel-3) 22%, white) 0%,
+      color-mix(in oklch, var(--wheel-2) 16%, white) 48%,
+      color-mix(in oklch, var(--wheel-1) 14%, white) 100%
+    );
   box-shadow:
-    0 10px 24px oklch(0.35 0.05 250 / 14%),
-    inset 0 10px 18px oklch(1 0 0 / 85%),
-    inset 0 -8px 14px oklch(0.45 0.04 250 / 10%);
+    0 16px 36px color-mix(in oklch, var(--primary) 18%, transparent),
+    0 4px 12px color-mix(in oklch, var(--wheel-1) 16%, transparent),
+    inset 0 1px 0 oklch(1 0 0 / 75%),
+    inset 0 -10px 22px color-mix(in oklch, var(--wheel-2) 10%, transparent);
   pointer-events: none;
 }
 
 .vocablab-activity-orb-face::after {
   content: "";
   position: absolute;
-  left: 18%;
-  top: 12%;
-  width: 42%;
-  height: 28%;
+  left: 16%;
+  top: 14%;
+  width: 48%;
+  height: 30%;
   border-radius: 50%;
-  background: radial-gradient(ellipse at center, oklch(1 0 0 / 90%) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, oklch(1 0 0 / 70%) 0%, transparent 72%);
   pointer-events: none;
 }
 
 .vocablab-activity-orb-label {
   position: relative;
   z-index: 1;
-  font-size: clamp(1.55rem, 3.6vw, 1.95rem);
+  font-size: clamp(1.6rem, 3.8vw, 2.05rem);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1;
-  color: oklch(0.18 0.02 250);
+  color: color-mix(in oklch, var(--primary) 88%, oklch(0.22 0.05 250));
+  text-shadow: 0 1px 0 oklch(1 0 0 / 55%);
+}
+
+.vocablab-activity-orb:hover .vocablab-activity-orb-ring {
+  animation-duration: 8s;
+}
+
+.vocablab-activity-orb:hover .vocablab-activity-orb-glow {
+  opacity: 1;
+}
+
+@keyframes vocablab-activity-ring {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes vocablab-activity-glow {
+  from {
+    transform: scale(0.96);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1.04);
+    opacity: 0.95;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1407,6 +1737,11 @@
 
   .vocablab-activity-orb:hover {
     transform: none;
+  }
+
+  .vocablab-activity-orb-ring,
+  .vocablab-activity-orb-glow {
+    animation: none;
   }
 }
 

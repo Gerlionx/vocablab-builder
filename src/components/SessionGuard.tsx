@@ -20,7 +20,7 @@ export function SessionGuard() {
     const publicRoute = isPublicPath(pathname);
 
     if (!publicRoute && !isTeacherSessionActive()) {
-      navigate({ to: "/" });
+      navigate({ to: "/login" });
       return;
     }
 
@@ -34,7 +34,7 @@ export function SessionGuard() {
     const tick = window.setInterval(() => {
       if (isTeacherIdleExpired()) {
         endTeacherSession();
-        navigate({ to: "/" });
+        navigate({ to: "/login" });
       }
     }, 10_000);
 

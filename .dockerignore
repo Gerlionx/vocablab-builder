@@ -1,0 +1,17 @@
+node_modules
+.output
+.nitro
+.tanstack
+.git
+.wrangler
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+logs
+*.log
+.DS_Store
+.tmp*
+deploy/*.png

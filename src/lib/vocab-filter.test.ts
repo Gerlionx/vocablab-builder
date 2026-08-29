@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { facetOptionCounts, filterWords } from "./vocab-filter.ts";
+import { facetOptionCounts, filterWords, toggleFilterValue } from "./vocab-filter.ts";
 
 const sample = [
   {
@@ -71,5 +71,13 @@ describe("filterWords", () => {
     );
     assert.equal(topicsWhenY7.Greetings, 1);
     assert.equal(topicsWhenY7.Sport, 0);
+  });
+});
+
+describe("toggleFilterValue", () => {
+  it("adds a missing value and removes an existing one", () => {
+    assert.deepEqual(toggleFilterValue([], "Year 7"), ["Year 7"]);
+    assert.deepEqual(toggleFilterValue(["Year 7", "Year 8"], "Year 7"), ["Year 8"]);
+    assert.deepEqual(toggleFilterValue(["Year 8"], "Year 7"), ["Year 8", "Year 7"]);
   });
 });

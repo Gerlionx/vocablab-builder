@@ -14,12 +14,14 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as CreateRouteImport } from './routes/create'
 import { Route as GameSettingsRouteImport } from './routes/game-settings'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as VocabularyRouteImport } from './routes/vocabulary'
 import { Route as WheelRouteImport } from './routes/wheel'
 import { Route as GameSettingsIndexRouteImport } from './routes/game-settings.index'
 import { Route as GameSettingsImagesRouteImport } from './routes/game-settings.images'
 import { Route as GameSettingsWheelRouteImport } from './routes/game-settings.wheel'
+import { Route as ApiUploadsImageIdRouteImport } from './routes/api.uploads.$imageId'
 import { Route as GameSettingsWheelIndexRouteImport } from './routes/game-settings.wheel.index'
 import { Route as GameSettingsWheelLessonRouteImport } from './routes/game-settings.wheel.lesson'
 
@@ -46,6 +48,11 @@ const GameSettingsRoute = GameSettingsRouteImport.update({
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SetPasswordRoute = SetPasswordRouteImport.update({
@@ -78,6 +85,11 @@ const GameSettingsWheelRoute = GameSettingsWheelRouteImport.update({
   path: '/wheel',
   getParentRoute: () => GameSettingsRoute,
 } as any)
+const ApiUploadsImageIdRoute = ApiUploadsImageIdRouteImport.update({
+  id: '/api/uploads/$imageId',
+  path: '/api/uploads/$imageId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GameSettingsWheelIndexRoute = GameSettingsWheelIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -95,12 +107,14 @@ export interface FileRoutesByFullPath {
   '/create': typeof CreateRoute
   '/game-settings': typeof GameSettingsRouteWithChildren
   '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
   '/game-settings/images': typeof GameSettingsImagesRoute
   '/game-settings/wheel': typeof GameSettingsWheelRouteWithChildren
   '/game-settings/': typeof GameSettingsIndexRoute
+  '/api/uploads/$imageId': typeof ApiUploadsImageIdRoute
   '/game-settings/wheel/lesson': typeof GameSettingsWheelLessonRoute
   '/game-settings/wheel/': typeof GameSettingsWheelIndexRoute
 }
@@ -109,11 +123,13 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/create': typeof CreateRoute
   '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
   '/game-settings/images': typeof GameSettingsImagesRoute
   '/game-settings': typeof GameSettingsIndexRoute
+  '/api/uploads/$imageId': typeof ApiUploadsImageIdRoute
   '/game-settings/wheel/lesson': typeof GameSettingsWheelLessonRoute
   '/game-settings/wheel': typeof GameSettingsWheelIndexRoute
 }
@@ -124,12 +140,14 @@ export interface FileRoutesById {
   '/create': typeof CreateRoute
   '/game-settings': typeof GameSettingsRouteWithChildren
   '/home': typeof HomeRoute
+  '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
   '/game-settings/images': typeof GameSettingsImagesRoute
   '/game-settings/wheel': typeof GameSettingsWheelRouteWithChildren
   '/game-settings/': typeof GameSettingsIndexRoute
+  '/api/uploads/$imageId': typeof ApiUploadsImageIdRoute
   '/game-settings/wheel/lesson': typeof GameSettingsWheelLessonRoute
   '/game-settings/wheel/': typeof GameSettingsWheelIndexRoute
 }
@@ -141,12 +159,14 @@ export interface FileRouteTypes {
     | '/create'
     | '/game-settings'
     | '/home'
+    | '/login'
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
     | '/game-settings/images'
     | '/game-settings/wheel'
     | '/game-settings/'
+    | '/api/uploads/$imageId'
     | '/game-settings/wheel/lesson'
     | '/game-settings/wheel/'
   fileRoutesByTo: FileRoutesByTo
@@ -155,11 +175,13 @@ export interface FileRouteTypes {
     | '/account'
     | '/create'
     | '/home'
+    | '/login'
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
     | '/game-settings/images'
     | '/game-settings'
+    | '/api/uploads/$imageId'
     | '/game-settings/wheel/lesson'
     | '/game-settings/wheel'
   id:
@@ -169,12 +191,14 @@ export interface FileRouteTypes {
     | '/create'
     | '/game-settings'
     | '/home'
+    | '/login'
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
     | '/game-settings/images'
     | '/game-settings/wheel'
     | '/game-settings/'
+    | '/api/uploads/$imageId'
     | '/game-settings/wheel/lesson'
     | '/game-settings/wheel/'
   fileRoutesById: FileRoutesById
@@ -185,9 +209,11 @@ export interface RootRouteChildren {
   CreateRoute: typeof CreateRoute
   GameSettingsRoute: typeof GameSettingsRouteWithChildren
   HomeRoute: typeof HomeRoute
+  LoginRoute: typeof LoginRoute
   SetPasswordRoute: typeof SetPasswordRoute
   VocabularyRoute: typeof VocabularyRoute
   WheelRoute: typeof WheelRoute
+  ApiUploadsImageIdRoute: typeof ApiUploadsImageIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -225,6 +251,13 @@ declare module '@tanstack/react-router' {
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/set-password': {
@@ -268,6 +301,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/game-settings/wheel'
       preLoaderRoute: typeof GameSettingsWheelRouteImport
       parentRoute: typeof GameSettingsRoute
+    }
+    '/api/uploads/$imageId': {
+      id: '/api/uploads/$imageId'
+      path: '/api/uploads/$imageId'
+      fullPath: '/api/uploads/$imageId'
+      preLoaderRoute: typeof ApiUploadsImageIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/game-settings/wheel/': {
       id: '/game-settings/wheel/'
@@ -321,9 +361,11 @@ const rootRouteChildren: RootRouteChildren = {
   CreateRoute: CreateRoute,
   GameSettingsRoute: GameSettingsRouteWithChildren,
   HomeRoute: HomeRoute,
+  LoginRoute: LoginRoute,
   SetPasswordRoute: SetPasswordRoute,
   VocabularyRoute: VocabularyRoute,
   WheelRoute: WheelRoute,
+  ApiUploadsImageIdRoute: ApiUploadsImageIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

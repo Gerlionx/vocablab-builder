@@ -11,7 +11,7 @@ const ROSTER_KEY = "vocablab.teacher.roster";
 const ACTIVITY_KEY = "vocablab.teacher.activity";
 const WHEEL_MATCH_KEY = "vocablab.teacher.wheelMatch";
 
-const PUBLIC_PATHS = new Set(["/", "/set-password"]);
+const PUBLIC_PATHS = new Set(["/", "/login", "/set-password"]);
 
 /** In-memory activity so idle checks stay accurate without hammering sessionStorage. */
 let memoryActivityMs = 0;

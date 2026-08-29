@@ -1,0 +1,48 @@
+# VocabLab on Cerberus — shares ai-postgres (network ai_data).
+# Public edge is Caddy (not Nginx Proxy Manager): see deploy/caddy-vocablab.snippet
+name: vocablab
+
+services:
+  web:
+    build: .
+    image: vocablab:latest
+    container_name: vocablab
+    restart: unless-stopped
+    env_file:
+      - /srv/ai/gerlionx-agent-workspace/config/vocablab-postgres.env
+    environment:
+      NODE_ENV: production
+      HOST: "0.0.0.0"
+      PORT: "3000"
+      NITRO_HOST: "0.0.0.0"
+      NITRO_PORT: "3000"
+      APP_URL: "https://vocablab.unifiedops.cloud"
+      UPLOAD_DIR: "/app/uploads"
+      SESSION_TTL_SECONDS: "28800"
+    volumes:
+      - vocablab_uploads:/app/uploads
+    ports:
+      # Same pattern as n8n / chat / stoica — LAN + Tailscale, not host :3000
+      - "192.168.0.3:4360:3000"
+      - "100.127.144.93:4360:3000"
+    networks:
+      - ai_data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  ai_data:
+    external: true
+
+volumes:
+  vocablab_uploads:

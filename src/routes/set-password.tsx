@@ -36,7 +36,7 @@ function SetPasswordPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            navigate({ to: "/" });
+            navigate({ to: "/login" });
           }}
           className="space-y-4 rounded-3xl bg-surface/60 p-8 ring-1 ring-border"
         >

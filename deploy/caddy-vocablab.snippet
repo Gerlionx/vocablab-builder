@@ -1,0 +1,27 @@
+# Append to /srv/epic/system/compose/edge/caddy/Caddyfile (requires sudo),
+# then: docker exec epic-caddy caddy reload --config /etc/caddy/Caddyfile
+#
+# DNS: vocablab.unifiedops.cloud A → public IP, Cloudflare DNS-only (grey cloud)
+# so Caddy can issue the certificate locally (same pattern as whisper).
+
+vocablab.unifiedops.cloud {
+	log {
+		output stdout
+		format json
+	}
+
+	header {
+		Strict-Transport-Security "max-age=15552000; includeSubDomains"
+	}
+
+	reverse_proxy http://192.168.0.3:4360 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
+		header_up X-Forwarded-Proto {scheme}
+		transport http {
+			read_timeout 120s
+			write_timeout 120s
+		}
+	}
+}

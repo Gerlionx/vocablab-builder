@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { VocabLabLogo } from "@/components/VocabLabLogo";
+import { logoutFn } from "@/lib/api/auth";
 import { endTeacherSession } from "@/lib/teacher-session";
 
 export function AppChrome({ children }: { children: ReactNode }) {
@@ -84,20 +85,20 @@ export function TopBar() {
         {open ? (
           <div role="menu" className="vocablab-teacher-menu">
             <Link
-              to="/game-settings"
-              onClick={() => setOpen(false)}
-              className="vocablab-teacher-menu-item"
-            >
-              <span className="vocablab-teacher-menu-title">Create</span>
-              <span className="vocablab-teacher-menu-hint">Lessons & modes</span>
-            </Link>
-            <Link
               to="/vocabulary"
               onClick={() => setOpen(false)}
               className="vocablab-teacher-menu-item"
             >
               <span className="vocablab-teacher-menu-title">Vocabulary</span>
               <span className="vocablab-teacher-menu-hint">Browse the bank</span>
+            </Link>
+            <Link
+              to="/game-settings"
+              onClick={() => setOpen(false)}
+              className="vocablab-teacher-menu-item"
+            >
+              <span className="vocablab-teacher-menu-title">Create</span>
+              <span className="vocablab-teacher-menu-hint">Lessons & modes</span>
             </Link>
             <Link
               to="/game-settings/images"
@@ -107,10 +108,19 @@ export function TopBar() {
               <span className="vocablab-teacher-menu-title">Images</span>
               <span className="vocablab-teacher-menu-hint">Picture library</span>
             </Link>
+            <Link
+              to="/account"
+              onClick={() => setOpen(false)}
+              className="vocablab-teacher-menu-item"
+            >
+              <span className="vocablab-teacher-menu-title">Profile</span>
+              <span className="vocablab-teacher-menu-hint">Password & account</span>
+            </Link>
             <div className="vocablab-teacher-menu-rule" />
             <Link
               to="/"
               onClick={() => {
+                void logoutFn();
                 endTeacherSession();
                 setOpen(false);
               }}

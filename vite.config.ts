@@ -12,4 +12,8 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Cerberus Docker image runs Node — not Cloudflare Workers.
+  nitro: {
+    preset: "node-server",
+  },
 });
