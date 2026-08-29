@@ -50,6 +50,39 @@ export function toggleFilterValue(current: string[], value: string): string[] {
   return [...current, value];
 }
 
+/** Lowercase + strip accents so “ete” matches “été”. */
+export function normalizeSearchText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/**
+ * Live vocabulary search across French, English, and topic.
+ * Empty query returns []; results are capped for phone-friendly lists.
+ */
+export function searchWords<T extends FilterableWord>(
+  words: readonly T[],
+  query: string,
+  limit = 80,
+): T[] {
+  const needle = normalizeSearchText(query).trim();
+  if (!needle) return [];
+  const hits: T[] = [];
+  for (const word of words) {
+    if (
+      normalizeSearchText(word.french).includes(needle) ||
+      normalizeSearchText(word.english).includes(needle) ||
+      normalizeSearchText(word.topic).includes(needle)
+    ) {
+      hits.push(word);
+      if (hits.length >= limit) break;
+    }
+  }
+  return hits;
+}
+
 /**
  * Word counts per option for one filter dimension, respecting the other
  * selected filters. Empty sibling dimensions stay unconstrained so teachers

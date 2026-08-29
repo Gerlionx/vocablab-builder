@@ -25,6 +25,7 @@ import {
 } from "@/lib/vocab-backup";
 import { applyWordPatches, saveWordPatch } from "@/lib/word-patches";
 import { deleteWordFn, importSeedWordsFn, listWordsFn, upsertWordFn } from "@/lib/api/words";
+import { searchWords } from "@/lib/vocab-filter";
 
 export const Route = createFileRoute("/vocabulary")({
   head: () => ({
@@ -70,6 +71,8 @@ function VocabularyPage() {
   const [year, setYear] = useState("Year 7");
   const [selectedTerm, setSelectedTerm] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState(ALL);
+  const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [manage, setManage] = useState<null | "year" | "term" | "topic">(null);
@@ -219,6 +222,13 @@ function VocabularyPage() {
       .filter((topicName) => byTopic.has(topicName))
       .map((topicName) => ({ topic: topicName, words: byTopic.get(topicName)! }));
   }, [yearWords, selectedTerm, topics]);
+
+  const searchQuery = search.trim();
+  const isSearching = searchQuery.length > 0;
+  const searchHits = useMemo(
+    () => (isSearching ? searchWords(words, searchQuery) : []),
+    [words, searchQuery, isSearching],
+  );
 
   useEffect(() => {
     setSelectedTerm(null);
@@ -422,71 +432,141 @@ function VocabularyPage() {
 
         {/* Filters */}
         <div className="vocablab-vocab-sticky sticky top-0 z-20 -mx-4 mt-6 bg-background/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:mt-8 sm:px-6 sm:py-4">
-          <div className="flex flex-col gap-3 border-b border-line pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:pb-4">
-            <div className="grid grid-cols-2 gap-2 sm:contents">
-              <Select label="Year" value={year} onChange={setYear} options={years} />
-              <Select
-                label="Difficulty"
-                value={difficulty}
-                onChange={setDifficulty}
-                options={[ALL, ...DIFFICULTIES]}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() =>
-                setDraft({
-                  year,
-                  term: selectedTerm ?? terms[0] ?? "Term 1",
-                  topic: topics[0] ?? "Greetings",
-                  difficulty: "Medium",
-                  french: "",
-                  english: "",
-                })
-              }
-              className="hidden min-h-11 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98] sm:ml-auto sm:inline-flex sm:items-center"
-            >
-              Add word
-            </button>
-          </div>
+          <label className="relative block">
+            <span className="sr-only">Search vocabulary</span>
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search any word…"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="search"
+              className="w-full rounded-2xl bg-surface py-3 pl-4 pr-20 text-base text-foreground ring-1 ring-input placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {search ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  searchInputRef.current?.focus();
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                Clear
+              </button>
+            ) : null}
+          </label>
 
-          <div className="flex flex-col gap-3 pt-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span>
-                <span className="font-semibold text-foreground">Bold</span> = Low
-              </span>
-              <span>Regular = Medium</span>
-              <span>
-                <span className="text-foreground">*</span> = High
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-1 sm:ml-auto">
-              <button
-                type="button"
-                onClick={() => setManage("year")}
-                className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
-              >
-                Years
-              </button>
-              <button
-                type="button"
-                onClick={() => setManage("term")}
-                className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
-              >
-                Terms
-              </button>
-              <button
-                type="button"
-                onClick={() => setManage("topic")}
-                className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
-              >
-                Topics
-              </button>
-            </div>
-          </div>
+          {!isSearching ? (
+            <>
+              <div className="mt-3 flex flex-col gap-3 border-b border-line pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:pb-4">
+                <div className="grid grid-cols-2 gap-2 sm:contents">
+                  <Select label="Year" value={year} onChange={setYear} options={years} />
+                  <Select
+                    label="Difficulty"
+                    value={difficulty}
+                    onChange={setDifficulty}
+                    options={[ALL, ...DIFFICULTIES]}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setDraft({
+                      year,
+                      term: selectedTerm ?? terms[0] ?? "Term 1",
+                      topic: topics[0] ?? "Greetings",
+                      difficulty: "Medium",
+                      french: "",
+                      english: "",
+                    })
+                  }
+                  className="hidden min-h-11 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98] sm:ml-auto sm:inline-flex sm:items-center"
+                >
+                  Add word
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span>
+                    <span className="font-semibold text-foreground">Bold</span> = Low
+                  </span>
+                  <span>Regular = Medium</span>
+                  <span>
+                    <span className="text-foreground">*</span> = High
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1 sm:ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setManage("year")}
+                    className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
+                  >
+                    Years
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManage("term")}
+                    className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
+                  >
+                    Terms
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setManage("topic")}
+                    className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
+                  >
+                    Topics
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {searchHits.length === 0
+                ? `No words match “${searchQuery}”`
+                : `${searchHits.length}${searchHits.length >= 80 ? "+" : ""} match${
+                    searchHits.length === 1 ? "" : "es"
+                  } across all years`}
+            </p>
+          )}
         </div>
 
-        {selectedTerm ? (
+        {isSearching ? (
+          <div className="mt-4 rounded-2xl bg-surface/80 px-3 py-2 shadow-sm ring-1 ring-border sm:mt-6 sm:rounded-3xl sm:px-6 sm:py-4">
+            {searchHits.length === 0 ? (
+              <p className="px-2 py-10 text-center text-sm text-muted-foreground">
+                Try another spelling — search looks at French, English, and topic.
+              </p>
+            ) : (
+              <ul>
+                {searchHits.map((item) => (
+                  <li key={item.id} className="border-b border-line last:border-b-0">
+                    <p className="px-1 pt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+                      {item.year.replace(/^Year\s+/i, "Y")} ·{" "}
+                      {item.term.replace(/^Term\s+/i, "T")} · {item.topic}
+                    </p>
+                    <VocabRow
+                      item={item}
+                      onEdit={() => setDraft({ ...item })}
+                      onDelete={() =>
+                        setPendingDelete({
+                          kind: "word",
+                          id: item.id,
+                          label: item.french,
+                        })
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : selectedTerm ? (
           <div className="mt-6 sm:mt-8">
             <button
               type="button"
@@ -547,7 +627,7 @@ function VocabularyPage() {
           <div className="mt-12 rounded-2xl bg-surface/60 px-6 py-12 text-center ring-1 ring-border sm:mt-20 sm:rounded-3xl sm:px-8 sm:py-16">
             <p className="text-lg font-medium">Nothing here yet</p>
             <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-              No words match these filters. Try another difficulty, or add your
+              No words match these filters. Try another difficulty, search above, or add your
               first word for {year}.
             </p>
           </div>
