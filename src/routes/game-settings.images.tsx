@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { LangFlag } from "@/components/LangFlag";
 import {
   deleteLibraryImage,
   listLibraryImages,
@@ -23,6 +24,10 @@ export const Route = createFileRoute("/game-settings/images")({
   component: ImagesPage,
 });
 
+function wordsLinkedToImage(img: LibraryImage, words: readonly Word[]): Word[] {
+  return words.filter((w) => w.image === img.id || w.image === img.src);
+}
+
 function ImagesPage() {
   const [items, setItems] = useState(() => listLibraryImages());
   const [busy, setBusy] = useState(false);
@@ -38,6 +43,14 @@ function ImagesPage() {
     () => applyWordPatches(SEED_WORDS, patches),
     [patches],
   );
+
+  const linkedByImageId = useMemo(() => {
+    const map = new Map<string, Word[]>();
+    for (const img of items) {
+      map.set(img.id, wordsLinkedToImage(img, words));
+    }
+    return map;
+  }, [items, words]);
 
   function refresh() {
     setItems(listLibraryImages());
@@ -134,78 +147,101 @@ function ImagesPage() {
       {error ? <p className="mt-4 text-sm font-semibold text-destructive">{error}</p> : null}
 
       <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((img) => (
-          <li
-            key={img.id}
-            className="flex flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border"
-          >
-            <div className="flex aspect-[4/3] items-center justify-center bg-muted/40 p-4">
-              <img src={img.src} alt="" className="max-h-full max-w-full object-contain" />
-            </div>
-            <div className="flex flex-1 flex-col gap-2 p-4">
-              {editing?.id === img.id ? (
-                <form
-                  className="flex gap-2"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const fd = new FormData(e.currentTarget);
-                    saveTitle(img, String(fd.get("title") ?? ""));
-                  }}
-                >
-                  <input
-                    name="title"
-                    defaultValue={img.title}
-                    autoFocus
-                    maxLength={48}
-                    className="min-w-0 flex-1 rounded-xl bg-background px-3 py-2 text-sm font-semibold ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                  <button
-                    type="submit"
-                    className="rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-                  >
-                    Save
-                  </button>
-                </form>
-              ) : (
-                <div className="min-w-0">
-                  <p className="truncate font-kids text-lg font-semibold tracking-tight">
-                    {img.title}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {img.kind === "builtin" ? "Starter pack" : "Your upload"}
-                  </p>
-                </div>
-              )}
-              <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setAssigning(img)}
-                  className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
-                >
-                  Assign to word
-                </button>
-                {img.kind === "upload" ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setEditing(img)}
-                      className="rounded-full px-3 py-1 text-xs font-semibold text-foreground ring-1 ring-border hover:bg-muted"
-                    >
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => remove(img)}
-                      className="rounded-full px-3 py-1 text-xs font-semibold text-destructive ring-1 ring-border hover:bg-destructive/10"
-                    >
-                      Delete
-                    </button>
-                  </>
-                ) : null}
+        {items.map((img) => {
+          const linked = linkedByImageId.get(img.id) ?? [];
+          return (
+            <li
+              key={img.id}
+              className="flex flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border"
+            >
+              <div className="flex aspect-[4/3] items-center justify-center bg-muted/40 p-4">
+                <img src={img.src} alt="" className="max-h-full max-w-full object-contain" />
               </div>
-            </div>
-          </li>
-        ))}
+              <div className="flex flex-1 flex-col gap-2 p-4">
+                {editing?.id === img.id ? (
+                  <form
+                    className="flex gap-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const fd = new FormData(e.currentTarget);
+                      saveTitle(img, String(fd.get("title") ?? ""));
+                    }}
+                  >
+                    <input
+                      name="title"
+                      defaultValue={img.title}
+                      autoFocus
+                      maxLength={48}
+                      className="min-w-0 flex-1 rounded-xl bg-background px-3 py-2 text-sm font-semibold ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="submit"
+                      className="rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                    >
+                      Save
+                    </button>
+                  </form>
+                ) : (
+                  <div className="min-w-0">
+                    <p className="truncate font-kids text-lg font-semibold tracking-tight">
+                      {img.title}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {img.kind === "builtin" ? "Starter pack" : "Your upload"}
+                    </p>
+                  </div>
+                )}
+
+                {linked.length ? (
+                  <ul className="flex flex-col gap-2 rounded-2xl bg-muted/45 px-3 py-2.5 ring-1 ring-border/70">
+                    {linked.map((word) => (
+                      <li key={word.id} className="min-w-0">
+                        <p className="flex items-center gap-1.5 font-kids text-sm font-semibold tracking-tight text-foreground">
+                          <LangFlag lang="fr" className="size-3.5 shrink-0" />
+                          <span className="truncate">{word.french}</span>
+                        </p>
+                        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <LangFlag lang="en" className="size-3.5 shrink-0" />
+                          <span className="truncate">{word.english}</span>
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Not assigned to a word yet</p>
+                )}
+
+                <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setAssigning(img)}
+                    className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
+                  >
+                    {linked.length ? "Change word" : "Assign to word"}
+                  </button>
+                  {img.kind === "upload" ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setEditing(img)}
+                        className="rounded-full px-3 py-1 text-xs font-semibold text-foreground ring-1 ring-border hover:bg-muted"
+                      >
+                        Rename
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(img)}
+                        className="rounded-full px-3 py-1 text-xs font-semibold text-destructive ring-1 ring-border hover:bg-destructive/10"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          );
+        })}
       </ul>
 
       {assigning ? (
@@ -312,8 +348,14 @@ function AssignWordModal({
                   className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-muted/80"
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block font-semibold text-foreground">{word.french}</span>
-                    <span className="block text-sm text-muted-foreground">{word.english}</span>
+                    <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                      <LangFlag lang="fr" className="size-3.5 shrink-0" />
+                      <span className="truncate">{word.french}</span>
+                    </span>
+                    <span className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <LangFlag lang="en" className="size-3.5 shrink-0" />
+                      <span className="truncate">{word.english}</span>
+                    </span>
                     <span className="mt-0.5 block text-[11px] text-muted-foreground/80">
                       {word.year.replace(/^Year\s+/i, "Y")} ·{" "}
                       {word.term.replace(/^Term\s+/i, "T")} · {word.topic}
