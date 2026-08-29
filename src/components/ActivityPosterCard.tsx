@@ -19,7 +19,7 @@ type ActivityPosterCardProps = {
   search?: { mode?: WheelGameModeId };
   /** Hero headline — on Activity this is the mode name. */
   title: string;
-  /** Small game label above the title (e.g. Wheel of Names). */
+  /** Optional small game label (unused on Activity — art carries the game). */
   eyebrow?: string;
   teaser: string;
   modes?: readonly ModeChip[];
@@ -39,7 +39,6 @@ export function ActivityPosterCard({
   to,
   search,
   title,
-  eyebrow,
   teaser,
   modes = [],
   artSrc = "/wheel-of-names-poster.png",
@@ -79,50 +78,47 @@ export function ActivityPosterCard({
 
       <div className="vocablab-activity-card-body">
         <div className="vocablab-activity-card-copy">
-          {eyebrow ? (
-            <p className="vocablab-activity-card-eyebrow font-kids">{eyebrow}</p>
-          ) : (
-            <span className="vocablab-activity-card-eyebrow is-spacer" aria-hidden="true" />
-          )}
-          <h2 className="vocablab-activity-card-title font-kids">{title}</h2>
-          {modes.length ? (
-            <ul className="vocablab-activity-card-modes" aria-label="Game modes">
-              {modes.map((mode) => {
-                const className = [
-                  "vocablab-activity-card-mode",
-                  "font-kids",
-                  mode.active ? "is-active" : "",
-                  mode.dormant ? "is-dormant" : "",
-                  onModeClick ? "is-toggle" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ");
+          <div className="vocablab-activity-card-head">
+            <h2 className="vocablab-activity-card-title font-kids">{title}</h2>
+            {modes.length ? (
+              <ul className="vocablab-activity-card-modes" aria-label="Game modes">
+                {modes.map((mode) => {
+                  const className = [
+                    "vocablab-activity-card-mode",
+                    "font-kids",
+                    mode.active ? "is-active" : "",
+                    mode.dormant ? "is-dormant" : "",
+                    onModeClick ? "is-toggle" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ");
 
-                if (onModeClick) {
+                  if (onModeClick) {
+                    return (
+                      <li key={mode.id}>
+                        <button
+                          type="button"
+                          className={className}
+                          aria-pressed={Boolean(mode.active)}
+                          onClick={(e) => handleModeClick(e, String(mode.id))}
+                        >
+                          {mode.label}
+                          {mode.active ? <span className="sr-only"> (active)</span> : null}
+                        </button>
+                      </li>
+                    );
+                  }
+
                   return (
-                    <li key={mode.id}>
-                      <button
-                        type="button"
-                        className={className}
-                        aria-pressed={Boolean(mode.active)}
-                        onClick={(e) => handleModeClick(e, String(mode.id))}
-                      >
-                        {mode.label}
-                        {mode.active ? <span className="sr-only"> (active)</span> : null}
-                      </button>
+                    <li key={mode.id} className={className}>
+                      {mode.label}
+                      {mode.active ? <span className="sr-only"> (active)</span> : null}
                     </li>
                   );
-                }
-
-                return (
-                  <li key={mode.id} className={className}>
-                    {mode.label}
-                    {mode.active ? <span className="sr-only"> (active)</span> : null}
-                  </li>
-                );
-              })}
-            </ul>
-          ) : null}
+                })}
+              </ul>
+            ) : null}
+          </div>
           <p className="vocablab-activity-card-teaser">{teaser}</p>
         </div>
       </div>

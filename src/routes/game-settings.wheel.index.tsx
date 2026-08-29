@@ -559,38 +559,10 @@ function WheelLessonsPage() {
               </p>
 
               <p className="mt-4 text-sm font-medium">Ask</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ["french", "Fr → En", "fr", "en"],
-                    ["english", "En → Fr", "en", "fr"],
-                    ["random", "Mix", null, null],
-                  ] as const
-                ).map(([id, label, from, to]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() =>
-                      patchBasicSettings({ askDirection: id satisfies AskDirection })
-                    }
-                    className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-semibold transition ${
-                      draft.askDirection === id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground ring-1 ring-border"
-                    }`}
-                  >
-                    {from && to ? (
-                      <>
-                        <LangFlag lang={from} />
-                        <span className="mx-0.5 opacity-80">→</span>
-                        <LangFlag lang={to} />
-                      </>
-                    ) : (
-                      label
-                    )}
-                  </button>
-                ))}
-              </div>
+              <AskDirectionPicker
+                value={draft.askDirection}
+                onChange={(id) => patchBasicSettings({ askDirection: id })}
+              />
 
               <label className="mt-4 block text-sm font-medium">
                 Score to win
@@ -676,38 +648,10 @@ function WheelLessonsPage() {
               </p>
 
               <p className="mt-4 text-sm font-medium">Ask</p>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ["french", "Fr → En", "fr", "en"],
-                    ["english", "En → Fr", "en", "fr"],
-                    ["random", "Mix", null, null],
-                  ] as const
-                ).map(([id, label, from, to]) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() =>
-                      patchTimeSettings({ askDirection: id satisfies AskDirection })
-                    }
-                    className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-semibold transition ${
-                      draft.askDirection === id
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground ring-1 ring-border"
-                    }`}
-                  >
-                    {from && to ? (
-                      <>
-                        <LangFlag lang={from} />
-                        <span className="mx-0.5 opacity-80">→</span>
-                        <LangFlag lang={to} />
-                      </>
-                    ) : (
-                      label
-                    )}
-                  </button>
-                ))}
-              </div>
+              <AskDirectionPicker
+                value={draft.askDirection}
+                onChange={(id) => patchTimeSettings({ askDirection: id })}
+              />
 
               <label className="mt-4 block text-sm font-medium">
                 Starting time bank (seconds)
@@ -994,6 +938,61 @@ function ModeToggleRow({
           </p>
         )}
       </button>
+    </div>
+  );
+}
+
+const ASK_LANG_LABEL = { fr: "French", en: "English" } as const;
+
+function AskDirectionPicker({
+  value,
+  onChange,
+}: {
+  value: AskDirection;
+  onChange: (id: AskDirection) => void;
+}) {
+  const options = [
+    { id: "french" as const, from: "fr" as const, to: "en" as const },
+    { id: "english" as const, from: "en" as const, to: "fr" as const },
+    { id: "random" as const, from: null, to: null },
+  ];
+
+  return (
+    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      {options.map(({ id, from, to }) => {
+        const selected = value === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            aria-pressed={selected}
+            className={`flex items-center justify-center gap-1.5 rounded-2xl px-2.5 py-3 text-xs font-semibold transition sm:text-[0.8rem] ${
+              selected
+                ? "bg-primary text-primary-foreground"
+                : "bg-background text-foreground ring-1 ring-border"
+            }`}
+          >
+            {from && to ? (
+              <>
+                <span className="inline-flex items-center gap-1">
+                  <LangFlag lang={from} />
+                  <span>{ASK_LANG_LABEL[from]}</span>
+                </span>
+                <span className="opacity-80" aria-hidden>
+                  →
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <LangFlag lang={to} />
+                  <span>{ASK_LANG_LABEL[to]}</span>
+                </span>
+              </>
+            ) : (
+              "Mix"
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

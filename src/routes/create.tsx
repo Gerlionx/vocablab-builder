@@ -80,7 +80,6 @@ function CreatePage() {
                   ? { to: "/wheel" as const, search: { mode: mode.id } }
                   : {})}
                 disabled={!playable}
-                eyebrow="Wheel of Names"
                 title={mode.label}
                 modeId={mode.id}
                 artSrc={wheelModePosterSrc(mode.id)}

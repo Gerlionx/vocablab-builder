@@ -1309,52 +1309,30 @@
   }
 }
 
-/* ——— VocabLab speech-bubble wordmark ——— */
+/* ——— VocabLab text wordmark ——— */
 .vocablab-logo {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   line-height: 1;
-}
-
-.vocablab-logo-bubble {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 3.35rem;
-  padding: 0.62rem 1.35rem 0.78rem;
-  border-radius: 1.55rem 1.55rem 1.55rem 0.55rem;
-  background: oklch(0.995 0.005 95);
-  border: 3px solid oklch(0.32 0.06 250);
-  box-shadow: 0 8px 22px oklch(0.35 0.05 250 / 14%);
-}
-
-.vocablab-logo-bubble::after {
-  content: "";
-  position: absolute;
-  left: 1rem;
-  bottom: -0.72rem;
-  width: 1.05rem;
-  height: 1.05rem;
-  background: oklch(0.995 0.005 95);
-  border-right: 3px solid oklch(0.32 0.06 250);
-  border-bottom: 3px solid oklch(0.32 0.06 250);
-  border-radius: 0 0 0.15rem 0;
-  transform: rotate(45deg);
 }
 
 .vocablab-logo-word {
   display: inline-flex;
   align-items: baseline;
   gap: 0.02em;
-  font-size: clamp(1.7rem, 3.2vw, 2.15rem);
+  font-size: clamp(2.05rem, 4vw, 2.65rem);
   font-weight: 700;
-  letter-spacing: -0.028em;
+  letter-spacing: -0.03em;
   line-height: 1;
 }
 
 .vocablab-logo-word > span {
   display: inline-block;
+}
+
+.vocablab-logo-word > span.is-cap {
+  font-size: 1.18em;
+  letter-spacing: -0.04em;
 }
 
 /* ——— Home Activity orb: logo-matched cream disc ——— */
@@ -1389,7 +1367,7 @@
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  /* Same cream + navy as VocabLab logo bubble */
+  /* Cream + navy disc (independent of the text wordmark) */
   background:
     radial-gradient(circle at 32% 28%, oklch(1 0 0) 0%, oklch(0.995 0.005 95) 42%, oklch(0.97 0.01 220) 100%);
   border: 3px solid oklch(0.32 0.06 250);
@@ -1695,51 +1673,33 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* Same overlay height on every card so titles share one baseline. */
-  min-height: 46%;
-  padding: clamp(0.75rem, 2.4vw, 1.05rem) clamp(0.8rem, 2.6vw, 1.15rem)
-    clamp(0.85rem, 2.6vw, 1.15rem);
+  /* Grow with copy — never clip title or teaser. */
+  min-height: 38%;
+  padding: clamp(0.85rem, 2.4vw, 1.15rem) clamp(0.85rem, 2.6vw, 1.15rem)
+    clamp(0.9rem, 2.6vw, 1.2rem);
 }
 
 .vocablab-activity-card-copy {
   display: grid;
-  grid-template-rows: auto auto auto;
+  grid-template-rows: auto auto;
   gap: 0.35rem;
   width: 100%;
 }
 
-.vocablab-activity-card-eyebrow {
-  margin: 0;
-  width: fit-content;
-  max-width: 100%;
-  padding: 0.22rem 0.55rem 0.26rem;
-  border-radius: 999px;
-  background: oklch(0.14 0.04 250 / 72%);
-  box-shadow:
-    inset 0 0 0 1px oklch(1 0 0 / 22%),
-    0 4px 14px oklch(0.12 0.04 250 / 35%);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: oklch(0.99 0.01 95);
-  line-height: 1.15;
-}
-
-.vocablab-activity-card-eyebrow.is-spacer {
-  visibility: hidden;
-  min-height: 1.4rem;
-  padding-block: 0.22rem;
+.vocablab-activity-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 1.35em;
 }
 
 .vocablab-activity-card-title {
   --activity-mode-accent: oklch(0.92 0.12 88);
   margin: 0;
-  max-width: 12ch;
-  min-height: 1.95em;
-  font-size: clamp(1.4rem, 3.2vw, 1.9rem);
+  max-width: 100%;
+  font-size: clamp(1.45rem, 3.4vw, 2rem);
   font-weight: 700;
-  line-height: 0.98;
+  line-height: 1.05;
   letter-spacing: -0.03em;
   color: var(--activity-mode-accent);
   text-shadow:
@@ -1829,8 +1789,9 @@ button.vocablab-activity-card-mode.is-toggle:focus-visible {
 
 .vocablab-activity-card-teaser {
   margin: 0;
-  max-width: 28ch;
-  min-height: 3.15em;
+  max-width: 32ch;
+  /* 3-line slot so both mode titles share one baseline. */
+  min-height: 4.05em;
   font-size: 0.8rem;
   line-height: 1.35;
   color: oklch(0.96 0.02 95 / 90%);
