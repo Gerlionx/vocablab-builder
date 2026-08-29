@@ -879,7 +879,13 @@ function WheelPage() {
     setTerms(found.terms);
     setTopics(found.topics);
     setDifficulties(found.difficulties);
-    const next = lessonToSettings(found);
+    // Keep the Activity-card mode (Time bank vs Standard). Lessons own the
+    // word pool; Start used to call lessonToSettings alone and wiped Time bank.
+    const next = applyModeSettingsToDraft(
+      lessonToSettings(found),
+      settings.gameMode,
+      loadModeSettings(),
+    );
     setSettings(next);
     saveWheelSettings(next);
     setActiveLessonId(found.id);
@@ -901,7 +907,11 @@ function WheelPage() {
 
   function startGame() {
     if (!canStart || !activeLesson) return;
-    const next = lessonToSettings(activeLesson);
+    const next = applyModeSettingsToDraft(
+      lessonToSettings(activeLesson),
+      settings.gameMode,
+      loadModeSettings(),
+    );
     saveWheelSettings(next);
     setSettings(next);
     setStarted(true);
@@ -1710,6 +1720,13 @@ function WheelPage() {
             activeLesson={activeLesson}
             onLoadLesson={loadLesson}
             saveNote={saveNote}
+            playMode={settings.gameMode}
+            playModeOpts={{
+              winMode: settings.winMode,
+              scoreToWin: settings.scoreToWin,
+              secondsPerTeam: settings.secondsPerTeam,
+              askDirection: settings.askDirection,
+            }}
           />
         </aside>
       ) : null}

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { colorById, rainbowPaint, TEAM_COLORS, teamSlicePaint } from "@/lib/team-colors";
-import { describeLesson, type WheelLesson } from "@/lib/wheel-lessons";
+import { type WheelLesson } from "@/lib/wheel-lessons";
+import { describeWheelGameMode, type WheelGameModeId } from "@/lib/wheel-modes";
+import type { AskDirection } from "@/lib/game-settings";
 
 export function SetupPanel({
   namesText,
@@ -28,6 +30,8 @@ export function SetupPanel({
   activeLesson,
   onLoadLesson,
   saveNote,
+  playMode,
+  playModeOpts,
 }: {
   namesText: string;
   onNames: (v: string) => void;
@@ -54,6 +58,14 @@ export function SetupPanel({
   activeLesson: WheelLesson | null;
   onLoadLesson: (id: string) => void;
   saveNote: string | null;
+  /** Activity-card mode currently driving play (may differ from the lesson save). */
+  playMode: WheelGameModeId;
+  playModeOpts: {
+    winMode: "score" | "time";
+    scoreToWin: number;
+    secondsPerTeam: number;
+    askDirection: AskDirection;
+  };
 }) {
   const [namesOpen, setNamesOpen] = useState(false);
 
@@ -63,7 +75,7 @@ export function SetupPanel({
         <p className="text-3xl font-semibold tracking-tight text-foreground">Class</p>
         <p className="mt-0.5 text-sm font-medium text-muted-foreground">
           {activeLesson
-            ? `${activeLesson.title} · ${poolCount} words · ${describeLesson(activeLesson)}`
+            ? `${activeLesson.title} · ${poolCount} words · ${describeWheelGameMode(playMode, playModeOpts)}`
             : "Load a lesson, then paste names"}
         </p>
       </div>
@@ -101,7 +113,8 @@ export function SetupPanel({
           </select>
         )}
         <p className="mt-2 text-xs text-muted-foreground">
-          Vocabulary and game mode are locked in the lesson. Edit them under Create → Wheel.
+          Vocabulary is locked in the lesson. Game mode comes from the Activity card
+          (Standard or Time bank).
         </p>
         {saveNote ? <p className="mt-2 text-sm font-semibold text-success">{saveNote}</p> : null}
       </div>

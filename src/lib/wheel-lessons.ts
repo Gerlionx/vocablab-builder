@@ -3,13 +3,13 @@ import {
   type AskDirection,
   type WinMode,
   type WheelSettings,
-} from "@/lib/game-settings";
+} from "./game-settings.ts";
 import {
   DEFAULT_WHEEL_GAME_MODE,
   describeWheelGameMode,
   normaliseWheelGameMode,
   type WheelGameModeId,
-} from "@/lib/wheel-modes";
+} from "./wheel-modes.ts";
 
 /**
  * Saved Wheel lessons — vocab + play mode only.

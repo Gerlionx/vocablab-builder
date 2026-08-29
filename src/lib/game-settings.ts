@@ -4,7 +4,7 @@ import {
   normaliseWheelGameMode,
   wheelGameModeDef,
   type WheelGameModeId,
-} from "@/lib/wheel-modes";
+} from "./wheel-modes.ts";
 
 const KEY = "vocablab.gameSettings.wheel";
 const BOARD_MODES_KEY = "vocablab.wheel.boardModes";
