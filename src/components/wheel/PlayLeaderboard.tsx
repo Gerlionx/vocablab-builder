@@ -20,6 +20,8 @@ export function PlayLeaderboard({
   plusValue,
   activePlayer,
   unit = "pts",
+  variant = "overlay",
+  includeZeros = false,
 }: {
   teamsOn: boolean;
   teamCount: number;
@@ -35,7 +37,13 @@ export function PlayLeaderboard({
   activePlayer: string | null;
   /** Display unit after the number (`pts` score mode, `s` time bank). */
   unit?: string;
+  /** `sheet` = stacked list for the mobile scores drawer. */
+  variant?: "overlay" | "sheet";
+  /** Include zero-score rows (useful in the mobile sheet). */
+  includeZeros?: boolean;
 }) {
+  const sheet = variant === "sheet";
+
   if (teamsOn) {
     const teams = palettes
       .slice(0, teamCount)
@@ -45,16 +53,23 @@ export function PlayLeaderboard({
         score: scores[i] ?? 0,
         at: teamScoredAt[i] ?? 0,
       }))
-      .filter((team) => team.score > 0)
+      .filter((team) => includeZeros || team.score > 0)
       .sort((a, b) => b.score - a.score || a.at - b.at);
 
-    if (!teams.length) return null;
+    if (!teams.length) {
+      return sheet ? (
+        <p className="px-1 py-6 text-center text-sm text-muted-foreground">No scores yet</p>
+      ) : null;
+    }
 
-    if (teamCount === 2) {
+    if (!sheet && teamCount === 2) {
       const left = palettes[0] ? { color: palettes[0], i: 0, score: scores[0] ?? 0 } : null;
       const right = palettes[1] ? { color: palettes[1], i: 1, score: scores[1] ?? 0 } : null;
       return (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30" aria-label="Scores">
+        <div
+          className="vocablab-score-corners pointer-events-none absolute inset-x-0 top-0 z-30"
+          aria-label="Scores"
+        >
           {left && left.score > 0 ? (
             <div className="absolute left-3 top-16 sm:left-4 sm:top-14" style={{ width: PILL_WIDTH }}>
               <ScoreRow
@@ -88,7 +103,7 @@ export function PlayLeaderboard({
     }
 
     return (
-      <ScoreStack ariaLabel="Scores">
+      <ScoreStack ariaLabel="Scores" compact={sheet}>
         {teams.map(({ color, i, score }) => (
           <ScoreRow
             key={color.id}
@@ -113,13 +128,17 @@ export function PlayLeaderboard({
       score: playerScores[p.name] ?? 0,
       at: playerScoredAt[p.name] ?? Number.MAX_SAFE_INTEGER,
     }))
-    .filter((entry) => entry.score > 0)
+    .filter((entry) => includeZeros || entry.score > 0)
     .sort((a, b) => b.score - a.score || a.at - b.at || a.name.localeCompare(b.name));
 
-  if (!ranked.length) return null;
+  if (!ranked.length) {
+    return sheet ? (
+      <p className="px-1 py-6 text-center text-sm text-muted-foreground">No scores yet</p>
+    ) : null;
+  }
 
   return (
-    <ScoreStack ariaLabel="Scores">
+    <ScoreStack ariaLabel="Scores" compact={sheet}>
       {ranked.map((entry) => {
         const paint = rainbowPaint(nameIndex.get(entry.name) ?? 0);
         return (
@@ -140,10 +159,22 @@ export function PlayLeaderboard({
   );
 }
 
-function ScoreStack({ children, ariaLabel }: { children: ReactNode; ariaLabel: string }) {
+function ScoreStack({
+  children,
+  ariaLabel,
+  compact = false,
+}: {
+  children: ReactNode;
+  ariaLabel: string;
+  compact?: boolean;
+}) {
   return (
     <div
-      className="flex w-full flex-col items-stretch gap-1.5 px-3 pt-14 pb-2"
+      className={
+        compact
+          ? "flex w-full flex-col items-stretch gap-2"
+          : "flex w-full flex-col items-stretch gap-1.5 px-3 pt-14 pb-2"
+      }
       aria-live="polite"
       aria-relevant="additions text"
       aria-label={ariaLabel}

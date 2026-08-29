@@ -168,6 +168,7 @@ function WheelPage() {
   /** Teams mode the live match was started with — Setup can diverge until Start. */
   const [matchTeamsOn, setMatchTeamsOn] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [scoresOpen, setScoresOpen] = useState(false);
   const [wheelHover, setWheelHover] = useState(false);
   const deskOpen = !started || panelOpen;
   const playing = started && !panelOpen;
@@ -1484,7 +1485,16 @@ function WheelPage() {
   const playAgain = () => startGame();
 
   function openSetup() {
+    setScoresOpen(false);
     setPanelOpen(true);
+  }
+
+  function openScores() {
+    setScoresOpen(true);
+  }
+
+  function closeScores() {
+    setScoresOpen(false);
   }
 
   const questionOpen = scene === "question";
@@ -1523,29 +1533,8 @@ function WheelPage() {
   return (
     <div className="relative h-dvh overflow-hidden bg-background text-foreground">
       {showScoreRail ? (
-        teamCorners ? (
-          <PlayLeaderboard
-            teamsOn={teamsOn}
-            teamCount={teamCount}
-            scores={boardScores}
-            playerScores={boardPlayerScores}
-            players={boardPlayers}
-            palettes={palettes}
-            playerScoredAt={playerScoredAt}
-            teamScoredAt={teamScoredAt}
-            burst={scoreBurst}
-            plusFly={scoreFly?.target ?? null}
-            plusValue={scoreFly?.value ?? 0}
-            activePlayer={scoreFly?.player ?? activeName}
-            unit={timeBankMatch ? "s" : "pts"}
-          />
-        ) : (
-          <aside
-            className={`vocablab-score-rail pointer-events-none absolute bottom-28 left-0 top-0 z-30 w-[min(15rem,32vw)] overflow-x-hidden overflow-y-auto ${
-              deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
-            }`}
-            aria-label="Scores"
-          >
+        <div className="max-[40rem]:hidden">
+          {teamCorners ? (
             <PlayLeaderboard
               teamsOn={teamsOn}
               teamCount={teamCount}
@@ -1561,8 +1550,51 @@ function WheelPage() {
               activePlayer={scoreFly?.player ?? activeName}
               unit={timeBankMatch ? "s" : "pts"}
             />
-          </aside>
-        )
+          ) : (
+            <aside
+              className={`vocablab-score-rail pointer-events-none absolute bottom-28 left-0 top-0 z-30 w-[min(15rem,32vw)] overflow-x-hidden overflow-y-auto ${
+                deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+              }`}
+              aria-label="Scores"
+            >
+              <PlayLeaderboard
+                teamsOn={teamsOn}
+                teamCount={teamCount}
+                scores={boardScores}
+                playerScores={boardPlayerScores}
+                players={boardPlayers}
+                palettes={palettes}
+                playerScoredAt={playerScoredAt}
+                teamScoredAt={teamScoredAt}
+                burst={scoreBurst}
+                plusFly={scoreFly?.target ?? null}
+                plusValue={scoreFly?.value ?? 0}
+                activePlayer={scoreFly?.player ?? activeName}
+                unit={timeBankMatch ? "s" : "pts"}
+              />
+            </aside>
+          )}
+        </div>
+      ) : null}
+
+      {showScoreRail &&
+      playing &&
+      scene !== "wheel" &&
+      scene !== "spinning" &&
+      scene !== "landed" ? (
+        <button
+          type="button"
+          onClick={openScores}
+          disabled={deskOpen}
+          className="vocablab-mobile-scores-btn absolute z-[60] rounded-full bg-secondary px-4 py-2.5 font-kids text-sm font-semibold text-secondary-foreground shadow-lg ring-1 ring-border disabled:opacity-40 min-[40.01rem]:hidden"
+          style={{
+            top: "max(0.75rem, env(safe-area-inset-top, 0px))",
+            right: "5.75rem",
+          }}
+          aria-label="Show scores"
+        >
+          Scores
+        </button>
       ) : null}
 
       <div
@@ -1723,6 +1755,14 @@ function WheelPage() {
             >
               Set up
             </button>
+            <button
+              type="button"
+              onClick={openScores}
+              disabled={deskOpen}
+              className="vocablab-play-dock-scores rounded-full bg-surface px-5 py-3.5 font-kids text-base font-semibold shadow-md ring-1 ring-border disabled:opacity-40 min-[40.01rem]:hidden"
+            >
+              Scores
+            </button>
           </div>
         ) : null}
 
@@ -1748,9 +1788,62 @@ function WheelPage() {
             >
               Set up
             </button>
+            <button
+              type="button"
+              onClick={openScores}
+              disabled={deskOpen || scene === "spinning"}
+              className="vocablab-play-dock-scores rounded-full bg-surface px-5 py-3.5 font-kids text-base font-semibold shadow-md ring-1 ring-border disabled:opacity-40 min-[40.01rem]:hidden"
+            >
+              Scores
+            </button>
           </div>
         ) : null}
       </div>
+
+      {scoresOpen && showScoreRail ? (
+        <div
+          className="fixed inset-0 z-[70] flex flex-col justify-end bg-foreground/35 min-[40.01rem]:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mobile-scores-title"
+          onClick={closeScores}
+        >
+          <div
+            className="max-h-[min(70dvh,32rem)] overflow-y-auto rounded-t-3xl bg-card px-4 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl ring-1 ring-border"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="mobile-scores-title" className="font-kids text-xl font-semibold tracking-tight">
+                Scores
+              </h2>
+              <button
+                type="button"
+                onClick={closeScores}
+                className="rounded-full px-3 py-2 text-sm font-semibold text-muted-foreground ring-1 ring-border hover:bg-muted hover:text-foreground"
+              >
+                Close
+              </button>
+            </div>
+            <PlayLeaderboard
+              teamsOn={teamsOn}
+              teamCount={teamCount}
+              scores={boardScores}
+              playerScores={boardPlayerScores}
+              players={boardPlayers}
+              palettes={palettes}
+              playerScoredAt={playerScoredAt}
+              teamScoredAt={teamScoredAt}
+              burst={scoreBurst}
+              plusFly={scoreFly?.target ?? null}
+              plusValue={scoreFly?.value ?? 0}
+              activePlayer={scoreFly?.player ?? activeName}
+              unit={timeBankMatch ? "s" : "pts"}
+              variant="sheet"
+              includeZeros
+            />
+          </div>
+        </div>
+      ) : null}
 
       {started && !panelOpen ? (
         <button

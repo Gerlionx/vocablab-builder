@@ -1031,6 +1031,10 @@
     display: none;
   }
 
+  .vocablab-score-corners {
+    display: none;
+  }
+
   .vocablab-play-dock {
     position: absolute;
     left: 0;
@@ -1060,6 +1064,10 @@
 
   .vocablab-play-dock .vocablab-play-dock-setup {
     order: 2;
+  }
+
+  .vocablab-play-dock .vocablab-play-dock-scores {
+    order: 3;
   }
 
   .vocablab-ask-controls {
