@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LangFlag } from "@/components/LangFlag";
+import { listWordsFn, upsertWordFn } from "@/lib/api/words";
 import {
   deleteLibraryImage,
   listLibraryImages,
@@ -10,6 +11,7 @@ import {
   type LibraryImage,
 } from "@/lib/image-library";
 import { SEED_WORDS, type Word } from "@/lib/vocab-data";
+import { loadPersistedWordBank } from "@/lib/vocab-backup";
 import { applyWordPatches, loadWordPatches, saveWordPatch } from "@/lib/word-patches";
 
 export const Route = createFileRoute("/game-settings/images")({
@@ -38,12 +40,29 @@ function ImagesPage() {
   const [assigning, setAssigning] = useState<LibraryImage | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LibraryImage | null>(null);
   const [patches, setPatches] = useState(() => loadWordPatches());
+  const [bankWords, setBankWords] = useState<Word[]>(
+    () => loadPersistedWordBank() ?? SEED_WORDS,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
 
+  useEffect(() => {
+    let cancelled = false;
+    void listWordsFn()
+      .then((remote) => {
+        if (!cancelled && remote.length) setBankWords(remote);
+      })
+      .catch(() => {
+        /* offline — keep local bank */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const words = useMemo(
-    () => applyWordPatches(SEED_WORDS, patches),
-    [patches],
+    () => applyWordPatches(bankWords.length ? bankWords : SEED_WORDS, patches),
+    [bankWords, patches],
   );
 
   const linkedByImageId = useMemo(() => {
@@ -88,13 +107,44 @@ function ImagesPage() {
     setPendingDelete(img);
   }
 
+  const pendingLinked = pendingDelete
+    ? (linkedByImageId.get(pendingDelete.id) ?? wordsLinkedToImage(pendingDelete, words))
+    : [];
+
   function confirmRemove() {
     const img = pendingDelete;
     setPendingDelete(null);
     if (!img || img.kind === "builtin") return;
+    const linked = linkedByImageId.get(img.id) ?? wordsLinkedToImage(img, words);
+    for (const word of linked) {
+      saveWordPatch(word.id, { image: "" });
+      void upsertWordFn({
+        data: {
+          id: word.id,
+          word: {
+            year: word.year,
+            term: word.term,
+            topic: word.topic,
+            difficulty: word.difficulty,
+            french: word.french,
+            english: word.english,
+            image: null,
+          },
+        },
+      }).catch(() => null);
+    }
     deleteLibraryImage(img.id);
+    setBankWords((prev) =>
+      prev.map((w) =>
+        linked.some((l) => l.id === w.id) ? { ...w, image: undefined } : w,
+      ),
+    );
     refresh();
-    flash("Image removed");
+    flash(
+      linked.length
+        ? `Image removed · unlinked from ${linked.length} word${linked.length === 1 ? "" : "s"}`
+        : "Image removed",
+    );
   }
 
   function saveTitle(img: LibraryImage, title: string) {
@@ -265,12 +315,40 @@ function ImagesPage() {
         open={pendingDelete != null}
         title="Delete this image?"
         description={
-          <>
-            “{pendingDelete?.title}” will be permanently removed from your library. This cannot be
-            undone.
-          </>
+          pendingLinked.length > 0 ? (
+            <>
+              <p>
+                “{pendingDelete?.title}” is linked to{" "}
+                <span className="font-semibold text-foreground">
+                  {pendingLinked.length} word{pendingLinked.length === 1 ? "" : "s"}
+                </span>
+                . Deleting it will remove the picture from those words too.
+              </p>
+              <ul className="mt-3 max-h-40 space-y-1.5 overflow-y-auto rounded-2xl bg-muted/50 px-3 py-2.5 ring-1 ring-border">
+                {pendingLinked.slice(0, 12).map((word) => (
+                  <li key={word.id} className="text-sm text-foreground">
+                    <span className="font-semibold">{word.french}</span>
+                    <span className="text-muted-foreground"> — {word.english}</span>
+                  </li>
+                ))}
+                {pendingLinked.length > 12 ? (
+                  <li className="text-xs text-muted-foreground">
+                    +{pendingLinked.length - 12} more
+                  </li>
+                ) : null}
+              </ul>
+              <p className="mt-3">This cannot be undone.</p>
+            </>
+          ) : (
+            <>
+              “{pendingDelete?.title}” is not linked to any vocabulary words. It will be permanently
+              removed from your library. This cannot be undone.
+            </>
+          )
         }
-        confirmLabel="Delete image"
+        confirmLabel={
+          pendingLinked.length > 0 ? "Delete and unlink" : "Delete image"
+        }
         onCancel={() => setPendingDelete(null)}
         onConfirm={confirmRemove}
       />
