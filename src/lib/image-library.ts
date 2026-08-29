@@ -11,6 +11,7 @@ import {
 } from "@/lib/api/images";
 
 const KEY = "vocablab.imageLibrary.v1";
+const HIDDEN_BUILTINS_KEY = "vocablab.imageLibrary.hiddenBuiltins.v1";
 const MAX_EDGE = 960;
 const JPEG_QUALITY = 0.82;
 
@@ -100,9 +101,34 @@ function writeLocalUploads(list: LibraryImage[]) {
   localStorage.setItem(KEY, JSON.stringify(localOnly));
 }
 
+function readHiddenBuiltinIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(HIDDEN_BUILTINS_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((x): x is string => typeof x === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+function writeHiddenBuiltinIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(HIDDEN_BUILTINS_KEY, JSON.stringify([...ids]));
+}
+
+function findBuiltin(idOrSrc: string): LibraryImage | null {
+  return BUILTIN.find((b) => b.id === idOrSrc || b.src === idOrSrc) ?? null;
+}
+
 function mergeLibrary(): LibraryImage[] {
+  const hidden = readHiddenBuiltinIds();
   const byId = new Map<string, LibraryImage>();
-  for (const b of BUILTIN) byId.set(b.id, b);
+  for (const b of BUILTIN) {
+    if (!hidden.has(b.id)) byId.set(b.id, b);
+  }
   for (const u of readLocalUploads()) byId.set(u.id, { ...u, kind: "upload" });
   for (const u of serverUploads) byId.set(u.id, u);
   return [...byId.values()].sort((a, b) => {
@@ -113,6 +139,18 @@ function mergeLibrary(): LibraryImage[] {
 
 export function listLibraryImages(): LibraryImage[] {
   return mergeLibrary();
+}
+
+/** How many starter-pack pictures the teacher has removed from their library. */
+export function hiddenBuiltinCount(): number {
+  return readHiddenBuiltinIds().size;
+}
+
+/** Put every removed starter-pack picture back on the Images page. */
+export function restoreHiddenBuiltins(): number {
+  const n = readHiddenBuiltinIds().size;
+  writeHiddenBuiltinIds(new Set());
+  return n;
 }
 
 /** Pull teacher uploads from Postgres into the session cache. */
@@ -134,7 +172,10 @@ export async function syncLibraryFromServer(): Promise<LibraryImage[]> {
 
 export function getLibraryImage(id: string | undefined | null): LibraryImage | null {
   if (!id) return null;
-  return listLibraryImages().find((i) => i.id === id || i.src === id) ?? null;
+  return (
+    listLibraryImages().find((i) => i.id === id || i.src === id) ??
+    findBuiltin(id)
+  );
 }
 
 /**
@@ -166,11 +207,9 @@ export function imageLabel(ref: string | undefined | null): string | null {
 /** Map a legacy public path onto a builtin library id when possible. */
 export function coerceToLibraryRef(ref: string | undefined | null): string | undefined {
   if (!ref) return undefined;
-  if (getLibraryImage(ref)) {
-    const hit = getLibraryImage(ref)!;
-    return hit.id;
-  }
-  const match = BUILTIN.find((b) => b.src === ref);
+  const hit = getLibraryImage(ref);
+  if (hit) return hit.id;
+  const match = findBuiltin(ref);
   if (match) return match.id;
   if (ref.startsWith("data:") || ref.startsWith("/")) return ref;
   return ref;
@@ -182,21 +221,34 @@ export function wordImageValue(img: LibraryImage): string {
   return img.id;
 }
 
+/**
+ * Remove an image from the teacher library.
+ * Uploads are deleted from storage; starter-pack pictures are hidden from the list
+ * (words that still reference them keep showing the picture until unlinked).
+ */
 export async function deleteLibraryImage(id: string): Promise<boolean> {
-  const entry = getLibraryImage(id);
-  if (!entry || entry.kind === "builtin") return false;
+  const builtin = findBuiltin(id);
+  if (builtin) {
+    const hidden = readHiddenBuiltinIds();
+    hidden.add(builtin.id);
+    writeHiddenBuiltinIds(hidden);
+    return true;
+  }
 
-  if (isUuid(id)) {
+  const entry = listLibraryImages().find((i) => i.id === id || i.src === id);
+  if (!entry || entry.kind !== "upload") return false;
+
+  if (isUuid(entry.id)) {
     try {
-      await deleteImageFn({ data: { id } });
-      serverUploads = serverUploads.filter((i) => i.id !== id);
+      await deleteImageFn({ data: { id: entry.id } });
+      serverUploads = serverUploads.filter((i) => i.id !== entry.id);
     } catch {
       return false;
     }
   }
 
   const local = readLocalUploads();
-  const next = local.filter((i) => i.id !== id);
+  const next = local.filter((i) => i.id !== entry.id);
   if (next.length !== local.length) writeLocalUploads(next);
   return true;
 }

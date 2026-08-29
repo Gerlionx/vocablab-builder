@@ -5,8 +5,10 @@ import { LangFlag } from "@/components/LangFlag";
 import { listWordsFn, upsertWordFn } from "@/lib/api/words";
 import {
   deleteLibraryImage,
+  hiddenBuiltinCount,
   listLibraryImages,
   renameLibraryImage,
+  restoreHiddenBuiltins,
   syncLibraryFromServer,
   uploadLibraryImage,
   wordImageValue,
@@ -47,6 +49,9 @@ function ImagesPage() {
   const [editing, setEditing] = useState<LibraryImage | null>(null);
   const [assigning, setAssigning] = useState<LibraryImage | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LibraryImage | null>(null);
+  const [hiddenCount, setHiddenCount] = useState(() =>
+    typeof window === "undefined" ? 0 : hiddenBuiltinCount(),
+  );
   const [bankWords, setBankWords] = useState<Word[]>(
     () => loadPersistedWordBank() ?? SEED_WORDS,
   );
@@ -84,6 +89,7 @@ function ImagesPage() {
 
   function refreshLibrary() {
     setItems(listLibraryImages());
+    setHiddenCount(hiddenBuiltinCount());
   }
 
   function flash(msg: string) {
@@ -108,10 +114,6 @@ function ImagesPage() {
   }
 
   function remove(img: LibraryImage) {
-    if (img.kind === "builtin") {
-      setError("Starter images stay in the pack — you can unlink them from words instead.");
-      return;
-    }
     setPendingDelete(img);
   }
 
@@ -122,21 +124,23 @@ function ImagesPage() {
   async function confirmRemove() {
     const img = pendingDelete;
     setPendingDelete(null);
-    if (!img || img.kind === "builtin") return;
+    if (!img) return;
     const linked = linkedByImageId.get(img.id) ?? wordsLinkedToImage(img, words);
     for (const word of linked) {
       await persistWordImage(word, null).catch(() => null);
     }
     const ok = await deleteLibraryImage(img.id);
     if (!ok) {
-      setError("Could not delete that image. Try again while signed in.");
+      setError("Could not remove that image. Try again while signed in.");
       return;
     }
     refreshLibrary();
     flash(
       linked.length
         ? `Image removed · unlinked from ${linked.length} word${linked.length === 1 ? "" : "s"}`
-        : "Image removed",
+        : img.kind === "builtin"
+          ? "Starter image removed from your library"
+          : "Image removed",
     );
   }
 
@@ -216,9 +220,26 @@ function ImagesPage() {
           <h1 className="font-kids text-4xl font-semibold tracking-tight">Images</h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Upload pictures, then tap <span className="font-semibold text-foreground">Assign</span>{" "}
-            to attach one to a vocabulary word. Your uploads can be deleted anytime; starter pack
-            pictures stay available but can be unlinked from words.
+            to attach one to a vocabulary word. Tap <span className="font-semibold text-foreground">Delete</span>{" "}
+            to remove any picture from this page (linked words are unlinked first).
           </p>
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              onClick={() => {
+                const n = restoreHiddenBuiltins();
+                refreshLibrary();
+                flash(
+                  n === 1
+                    ? "Restored 1 starter image"
+                    : `Restored ${n} starter images`,
+                );
+              }}
+              className="mt-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+            >
+              Restore removed starter images ({hiddenCount})
+            </button>
+          ) : null}
         </div>
         <div>
           <input
@@ -253,15 +274,13 @@ function ImagesPage() {
             >
               <div className="relative flex aspect-[4/3] items-center justify-center bg-muted/40 p-4">
                 <img src={img.src} alt="" className="max-h-full max-w-full object-contain" />
-                {img.kind === "upload" ? (
-                  <button
-                    type="button"
-                    onClick={() => remove(img)}
-                    className="absolute right-3 top-3 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-destructive shadow-sm ring-1 ring-border hover:bg-destructive/10"
-                  >
-                    Delete
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() => remove(img)}
+                  className="absolute right-3 top-3 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-destructive shadow-sm ring-1 ring-border hover:bg-destructive/10"
+                >
+                  Delete
+                </button>
               </div>
               <div className="flex flex-1 flex-col gap-2 p-4">
                 {editing?.id === img.id ? (
@@ -340,23 +359,21 @@ function ImagesPage() {
                     {linked.length ? "Change word" : "Assign to word"}
                   </button>
                   {img.kind === "upload" ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setEditing(img)}
-                        className="rounded-full px-4 py-2.5 text-sm font-semibold text-foreground ring-1 ring-border hover:bg-muted"
-                      >
-                        Rename
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => remove(img)}
-                        className="rounded-full px-4 py-2.5 text-sm font-semibold text-destructive ring-1 ring-border hover:bg-destructive/10"
-                      >
-                        Delete
-                      </button>
-                    </>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(img)}
+                      className="rounded-full px-4 py-2.5 text-sm font-semibold text-foreground ring-1 ring-border hover:bg-muted"
+                    >
+                      Rename
+                    </button>
                   ) : null}
+                  <button
+                    type="button"
+                    onClick={() => remove(img)}
+                    className="rounded-full px-4 py-2.5 text-sm font-semibold text-destructive ring-1 ring-border hover:bg-destructive/10"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             </li>
@@ -375,7 +392,11 @@ function ImagesPage() {
 
       <ConfirmDialog
         open={pendingDelete != null}
-        title="Delete this image?"
+        title={
+          pendingDelete?.kind === "builtin"
+            ? "Remove this starter image?"
+            : "Delete this image?"
+        }
         description={
           pendingLinked.length > 0 ? (
             <>
@@ -384,7 +405,7 @@ function ImagesPage() {
                 <span className="font-semibold text-foreground">
                   {pendingLinked.length} word{pendingLinked.length === 1 ? "" : "s"}
                 </span>
-                . Deleting it will remove the picture from those words too.
+                . Removing it will unlink the picture from those words too.
               </p>
               <ul className="mt-3 max-h-40 space-y-1.5 overflow-y-auto rounded-2xl bg-muted/50 px-3 py-2.5 ring-1 ring-border">
                 {pendingLinked.slice(0, 12).map((word) => (
@@ -399,7 +420,16 @@ function ImagesPage() {
                   </li>
                 ) : null}
               </ul>
-              <p className="mt-3">This cannot be undone.</p>
+              <p className="mt-3">
+                {pendingDelete?.kind === "builtin"
+                  ? "You can restore starter images later from this page."
+                  : "This cannot be undone."}
+              </p>
+            </>
+          ) : pendingDelete?.kind === "builtin" ? (
+            <>
+              “{pendingDelete?.title}” will be removed from your Images library. You can restore
+              starter images later if you change your mind.
             </>
           ) : (
             <>
@@ -409,7 +439,11 @@ function ImagesPage() {
           )
         }
         confirmLabel={
-          pendingLinked.length > 0 ? "Delete and unlink" : "Delete image"
+          pendingLinked.length > 0
+            ? "Remove and unlink"
+            : pendingDelete?.kind === "builtin"
+              ? "Remove from library"
+              : "Delete image"
         }
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => void confirmRemove()}
