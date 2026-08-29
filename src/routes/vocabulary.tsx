@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppChrome } from "@/components/AppChrome";
+import { ImagePicker } from "@/components/ImagePicker";
 import {
   DIFFICULTIES,
   SEED_WORDS,
@@ -11,6 +12,8 @@ import {
   type Difficulty,
   type Word,
 } from "@/lib/vocab-data";
+import { resolveImageSrc } from "@/lib/image-library";
+import { applyWordPatches, saveWordPatch } from "@/lib/word-patches";
 
 export const Route = createFileRoute("/vocabulary")({
   head: () => ({
@@ -46,7 +49,7 @@ type Draft = {
 };
 
 function VocabularyPage() {
-  const [words, setWords] = useState<Word[]>(SEED_WORDS);
+  const [words, setWords] = useState<Word[]>(() => applyWordPatches(SEED_WORDS));
   const [years, setYears] = useState<string[]>(YEARS);
   const [terms, setTerms] = useState<string[]>(TERMS);
   const [topics, setTopics] = useState<string[]>(TOPICS);
@@ -56,7 +59,6 @@ function VocabularyPage() {
   const [difficulty, setDifficulty] = useState(ALL);
 
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [confirmYear, setConfirmYear] = useState(false);
   const [manage, setManage] = useState<null | "year" | "term" | "topic">(null);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
@@ -150,6 +152,14 @@ function VocabularyPage() {
           w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w,
         ),
       );
+      saveWordPatch(d.id, {
+        french: d.french,
+        english: d.english,
+        year: d.year,
+        term: d.term,
+        topic: d.topic,
+        difficulty: d.difficulty,
+      });
     } else {
       setWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
       if (d.year !== year) setYear(d.year);
@@ -335,16 +345,6 @@ function VocabularyPage() {
             ))}
           </div>
         )}
-
-        <div className="mt-20 border-t border-line pt-6">
-          <button
-            type="button"
-            onClick={() => setConfirmYear(true)}
-            className="text-sm font-medium text-destructive hover:opacity-80"
-          >
-            Delete {year}
-          </button>
-        </div>
       </main>
 
       {/* Add / edit word */}
@@ -405,12 +405,10 @@ function VocabularyPage() {
                 className="w-full rounded-xl bg-surface px-4 py-2.5 text-base ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
-            <Field label="Image (optional)">
-              <input
-                value={draft.image ?? ""}
-                onChange={(e) => setDraft({ ...draft, image: e.target.value })}
-                placeholder="/vocab-images/year8/eiffel-tower.jpg"
-                className="w-full rounded-xl bg-surface px-4 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+            <Field label="Image">
+              <ImagePicker
+                value={draft.image}
+                onChange={(image) => setDraft({ ...draft, image })}
               />
             </Field>
             <div className="flex justify-end gap-2 pt-2">
@@ -577,31 +575,6 @@ function VocabularyPage() {
         </Modal>
       ) : null}
 
-      {/* Delete year confirmation */}
-      {confirmYear ? (
-        <Modal title={`Delete ${year}?`} onClose={() => setConfirmYear(false)}>
-          <p className="text-sm text-muted-foreground">
-            This will delete all words in this year. This cannot be undone.
-          </p>
-          <div className="mt-8 flex justify-end gap-2">
-            <GhostButton onClick={() => setConfirmYear(false)}>Cancel</GhostButton>
-            <button
-              type="button"
-              onClick={() => {
-                const left = years.filter((y) => y !== year);
-                setWords((p) => p.filter((w) => w.year !== year));
-                setYears(left);
-                setYear(left[0] ?? "");
-                setConfirmYear(false);
-              }}
-              className="rounded-lg bg-destructive px-5 py-2 text-sm font-medium text-destructive-foreground"
-            >
-              Delete {year}
-            </button>
-          </div>
-        </Modal>
-      ) : null}
-
       {/* Download */}
       {download ? (
         <Modal title="Download vocabulary" onClose={() => setDownload(false)}>
@@ -679,17 +652,21 @@ function VocabRow({
   onDelete: () => void;
 }) {
   return (
-    <li className="group flex items-start justify-between gap-4 border-b border-line py-3 last:border-b-0">
-      <div className="flex min-w-0 flex-1 gap-4">
-        {item.image ? (
+    <li className="group relative border-b border-line last:border-b-0">
+      <button
+        type="button"
+        onClick={onEdit}
+        className="flex w-full items-start gap-4 py-3 pr-12 text-left transition hover:bg-muted/40 focus:outline-none focus-visible:bg-muted/50"
+      >
+        {resolveImageSrc(item.image) ? (
           <img
-            src={item.image}
+            src={resolveImageSrc(item.image)}
             alt=""
-            className="mt-0.5 h-16 w-16 shrink-0 rounded-lg object-cover ring-1 ring-border"
+            className="mt-0.5 h-16 w-16 shrink-0 rounded-lg object-contain ring-1 ring-border"
           />
         ) : null}
         <div
-          className={`flex min-w-0 flex-wrap items-baseline gap-x-6 gap-y-1 ${
+          className={`flex min-w-0 flex-1 flex-wrap items-baseline gap-x-6 gap-y-1 ${
             item.difficulty === "Low"
               ? "font-semibold text-foreground"
               : "font-normal text-muted-foreground"
@@ -701,24 +678,33 @@ function VocabRow({
           </span>
           <span className="text-base">{item.english}</span>
         </div>
-      </div>
-      <div className="flex shrink-0 gap-3 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-xs font-medium text-muted-foreground hover:text-foreground"
-        >
-          Edit
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="text-xs font-medium text-destructive/70 hover:text-destructive"
-        >
-          Delete
-        </button>
-      </div>
+      </button>
+      <button
+        type="button"
+        aria-label={`Delete ${item.french}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-destructive/70 opacity-0 transition hover:bg-destructive/10 hover:text-destructive focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 group-focus-within:opacity-100"
+      >
+        <TrashIcon />
+      </button>
     </li>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="16" height="16" fill="none" aria-hidden>
+      <path
+        d="M7.5 4.5V3.75A1.25 1.25 0 0 1 8.75 2.5h2.5a1.25 1.25 0 0 1 1.25 1.25v.75M4 5.5h12M8.25 8.5v5M11.75 8.5v5M5.75 5.5l.6 9.1A1.5 1.5 0 0 0 7.85 16h4.3a1.5 1.5 0 0 0 1.5-1.4l.6-9.1"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -752,14 +738,18 @@ function Select({
   options: string[];
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-lg bg-surface px-3 py-1.5 text-sm ring-1 ring-border">
-      <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
+    <label className="relative inline-flex min-w-[9.5rem] cursor-pointer items-stretch overflow-hidden rounded-2xl bg-card ring-1 ring-border transition hover:ring-primary/40 focus-within:ring-2 focus-within:ring-ring">
+      <span className="pointer-events-none flex flex-col justify-center py-2.5 pl-3.5 pr-1">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {label}
+        </span>
+        <span className="mt-0.5 text-sm font-semibold text-foreground">{value}</span>
       </span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="bg-transparent text-sm font-medium focus:outline-none"
+        aria-label={label}
+        className="absolute inset-0 cursor-pointer opacity-0"
       >
         {options.map((o) => (
           <option key={o} value={o}>
@@ -767,6 +757,11 @@ function Select({
           </option>
         ))}
       </select>
+      <span className="pointer-events-none ml-auto flex items-center pr-3 text-muted-foreground" aria-hidden>
+        <svg viewBox="0 0 12 8" width="12" height="8" fill="none">
+          <path d="M1 1.5 L6 6.5 L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      </span>
     </label>
   );
 }
@@ -815,9 +810,29 @@ function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      if (!panelRef.current?.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-6 backdrop-blur-sm">
-      <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-popover p-8 shadow-2xl ring-1 ring-border">
+      <div
+        ref={panelRef}
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-popover p-8 shadow-2xl ring-1 ring-border"
+      >
         <div className="mb-6 flex items-start justify-between gap-4">
           <h2 className="text-xl font-medium tracking-tight">{title}</h2>
           <button

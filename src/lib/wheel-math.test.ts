@@ -48,6 +48,13 @@ describe("winnerIndex pin boundaries", () => {
     const peg = 4 * step;
     assert.equal(winnerIndex(angleForLocal(peg + 0.35), n), 4);
   });
+
+  it("picks the next name when the clicker covers the upcoming peg", () => {
+    const n = 12;
+    const step = 360 / n;
+    const peg = 4 * step;
+    assert.equal(winnerIndex(angleForLocal(peg - 3), n), 4);
+  });
 });
 
 describe("winnerIndex pointer mapping", () => {

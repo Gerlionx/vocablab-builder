@@ -9,7 +9,7 @@ export function SetupPanel({
   allNames,
   teamsOn,
   teamCount,
-  setTeamCount,
+  setTeamCount: _setTeamCount,
   onToggleTeams,
   roster,
   colorIds,
@@ -19,6 +19,7 @@ export function SetupPanel({
   onSplit,
   canStart,
   started,
+  showRestart = false,
   onStart,
   onResume,
   onReset,
@@ -43,6 +44,8 @@ export function SetupPanel({
   onSplit: () => void;
   canStart: boolean;
   started: boolean;
+  /** Mid-match: teams single/teams toggle changed — offer Start beside Resume. */
+  showRestart?: boolean;
   onStart: () => void;
   onResume: () => void;
   onReset: () => void;
@@ -114,26 +117,9 @@ export function SetupPanel({
           {teamsOn ? "Teams on" : "Teams"}
         </button>
         {teamsOn ? (
-          <>
-            <button
-              type="button"
-              onClick={() => setTeamCount(2)}
-              className={`rounded-full px-4 text-lg font-semibold ${
-                teamCount === 2 ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-              }`}
-            >
-              2
-            </button>
-            <button
-              type="button"
-              onClick={() => setTeamCount(3)}
-              className={`rounded-full px-4 text-lg font-semibold ${
-                teamCount === 3 ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
-              }`}
-            >
-              3
-            </button>
-          </>
+          <span className="rounded-full bg-muted px-4 py-2.5 text-lg font-semibold text-foreground">
+            2 teams
+          </span>
         ) : null}
       </div>
 
@@ -209,13 +195,29 @@ export function SetupPanel({
           Reset
         </button>
         {started ? (
-          <button
-            type="button"
-            onClick={onResume}
-            className="flex-1 rounded-full bg-primary py-4 text-2xl font-semibold text-primary-foreground shadow-md"
-          >
-            Resume
-          </button>
+          <>
+            {showRestart ? (
+              <button
+                type="button"
+                onClick={onStart}
+                disabled={!canStart}
+                className="flex-1 rounded-full bg-primary py-4 text-2xl font-semibold text-primary-foreground shadow-md disabled:opacity-40"
+              >
+                Start
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={onResume}
+              className={`flex-1 rounded-full py-4 text-2xl font-semibold ${
+                showRestart
+                  ? "bg-muted text-foreground ring-1 ring-border"
+                  : "bg-primary text-primary-foreground shadow-md"
+              }`}
+            >
+              Resume
+            </button>
+          </>
         ) : (
           <button
             type="button"

@@ -33,6 +33,8 @@ export type WheelLesson = {
   terms: string[];
   topics: string[];
   difficulties: string[];
+  /** Word ids kept out of this lesson (still in the bank). */
+  excludedWordIds: string[];
   /** Game mode for this lesson. Basic is the original spin → ask → score loop. */
   gameMode: WheelGameModeId;
   askDirection: AskDirection;
@@ -54,10 +56,53 @@ export function tidyLessonTitle(raw: string) {
 }
 
 export function suggestLessonTitle(years: string[], topics: string[]) {
-  const yearBit = years.length ? years.join(" + ") : "All years";
-  if (topics.length === 1) return `${yearBit} · ${topics[0]}`;
-  if (topics.length > 1) return `${yearBit} · ${topics.length} topics`;
-  return yearBit;
+  return abbreviateLessonTitle({ years, terms: [], topics, difficulties: [] });
+}
+
+/** Compact lesson name from filter selection — short but readable on the board. */
+export function abbreviateLessonTitle(opts: {
+  years: string[];
+  terms: string[];
+  topics: string[];
+  difficulties: string[];
+}) {
+  if (
+    !opts.years.length &&
+    !opts.terms.length &&
+    !opts.topics.length &&
+    !opts.difficulties.length
+  ) {
+    return tidyLessonTitle("New lesson");
+  }
+  const yearBit = opts.years.length
+    ? opts.years.map(abbrevYear).join("+")
+    : "AllY";
+  const termBit = opts.terms.length
+    ? opts.terms.map((t) => t.replace(/^Term\s+/i, "T")).join("+")
+    : "AllT";
+  const topicBit =
+    opts.topics.length === 0
+      ? "All topics"
+      : opts.topics.length === 1
+        ? abbrevTopic(opts.topics[0]!)
+        : `${opts.topics.length} topics`;
+  const levelBit = opts.difficulties.length
+    ? ` · ${opts.difficulties.map((d) => d.slice(0, 1)).join("")}`
+    : "";
+  return tidyLessonTitle(`${yearBit} · ${termBit} · ${topicBit}${levelBit}`);
+}
+
+function abbrevYear(year: string) {
+  if (year === "Year 7") return "Y7";
+  if (year === "Year 8") return "Y8";
+  if (year === "Year 9 Mixed Ability") return "Y9MA";
+  if (year === "Year 9 More Able") return "Y9More";
+  return year.replace(/^Year\s+/i, "Y");
+}
+
+function abbrevTopic(topic: string) {
+  if (topic.length <= 18) return topic;
+  return `${topic.slice(0, 16).trimEnd()}…`;
 }
 
 function asList(value: unknown, fallback: string[]): string[] {
@@ -79,7 +124,7 @@ function clamp(n: number, min: number, max: number) {
 export function lessonToSettings(lesson: WheelLesson): WheelSettings {
   return {
     gameMode: lesson.gameMode,
-    winMode: lesson.winMode,
+    winMode: "score",
     scoreToWin: lesson.scoreToWin,
     pointsCorrect: lesson.pointsCorrect,
     pointsRevealed: lesson.pointsRevealed,
@@ -166,10 +211,11 @@ export function blankLessonDraft(
 ): Omit<WheelLesson, "id" | "savedAt"> {
   return {
     title: "",
-    years: ["Year 7"],
-    terms: ["Term 1"],
+    years: [],
+    terms: [],
     topics: [],
     difficulties: [],
+    excludedWordIds: [],
     gameMode: defaults.gameMode ?? DEFAULT_WHEEL_GAME_MODE,
     askDirection: defaults.askDirection,
     winMode: defaults.winMode,
@@ -201,12 +247,15 @@ export function upsertWheelLesson(
     terms: asList(input.terms, []),
     topics: asList(input.topics, []),
     difficulties: asList(input.difficulties, []),
+    excludedWordIds: Array.isArray(input.excludedWordIds)
+      ? [...new Set(input.excludedWordIds.map(String).filter(Boolean))]
+      : [],
     gameMode: normaliseWheelGameMode(input.gameMode),
     askDirection:
       input.askDirection === "french" || input.askDirection === "english"
         ? input.askDirection
         : "random",
-    winMode: input.winMode === "time" ? "time" : "score",
+    winMode: "score",
     scoreToWin: clamp(Number(input.scoreToWin) || DEFAULT_WHEEL_SETTINGS.scoreToWin, 5, 200),
     pointsCorrect: clamp(
       Number(input.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect,
@@ -263,9 +312,12 @@ function normaliseLesson(raw: unknown): WheelLesson | null {
     terms: asList(s.terms ?? s.term, []),
     topics: asList(s.topics ?? s.topic, []),
     difficulties: asList(s.difficulties ?? s.difficulty, []),
+    excludedWordIds: Array.isArray(s.excludedWordIds)
+      ? [...new Set(s.excludedWordIds.map(String).filter(Boolean))]
+      : [],
     gameMode: normaliseWheelGameMode(s.gameMode),
     askDirection,
-    winMode: s.winMode === "time" ? "time" : "score",
+    winMode: "score",
     scoreToWin: clamp(Number(s.scoreToWin) || DEFAULT_WHEEL_SETTINGS.scoreToWin, 5, 200),
     pointsCorrect: clamp(Number(s.pointsCorrect) || DEFAULT_WHEEL_SETTINGS.pointsCorrect, 1, 20),
     pointsRevealed: clamp(

@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { formatClock } from "@/lib/wheel-math";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { rainbowPaint, type colorById } from "@/lib/team-colors";
 
 type Palette = ReturnType<typeof colorById>;
+
+const PILL_WIDTH = "min(15rem, 32vw)";
+const PILL_TYPE = "clamp(1.05rem, 2.2vmin, 1.7rem)";
 
 export function PlayLeaderboard({
   teamsOn,
@@ -11,9 +13,8 @@ export function PlayLeaderboard({
   playerScores,
   players,
   palettes,
-  banks,
-  timeMatch,
-  turn,
+  playerScoredAt,
+  teamScoredAt,
   burst,
   plusFly,
   plusValue,
@@ -25,28 +26,64 @@ export function PlayLeaderboard({
   playerScores: Record<string, number>;
   players: { name: string; team: number }[];
   palettes: Palette[];
-  banks: number[];
-  timeMatch: boolean;
-  turn: number;
+  playerScoredAt: Record<string, number>;
+  teamScoredAt: number[];
   burst: number | null;
   plusFly: number | null;
   plusValue: number;
   activePlayer: string | null;
 }) {
   if (teamsOn) {
-    const teams = palettes.slice(0, teamCount).map((color, i) => ({
-      color,
-      i,
-      score: scores[i] ?? 0,
-    }));
+    const teams = palettes
+      .slice(0, teamCount)
+      .map((color, i) => ({
+        color,
+        i,
+        score: scores[i] ?? 0,
+        at: teamScoredAt[i] ?? 0,
+      }))
+      .filter((team) => team.score > 0)
+      .sort((a, b) => b.score - a.score || a.at - b.at);
+
+    if (!teams.length) return null;
+
+    if (teamCount === 2) {
+      const left = palettes[0] ? { color: palettes[0], i: 0, score: scores[0] ?? 0 } : null;
+      const right = palettes[1] ? { color: palettes[1], i: 1, score: scores[1] ?? 0 } : null;
+      return (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30" aria-label="Scores">
+          {left && left.score > 0 ? (
+            <div className="absolute left-3 top-12 sm:left-4 sm:top-14" style={{ width: PILL_WIDTH }}>
+              <ScoreRow
+                label={left.color.label}
+                score={left.score}
+                fill={left.color.fill}
+                ink={left.color.ink}
+                burst={burst === 0}
+                plus={plusFly === 0 ? plusValue : null}
+                enterKey={`team-${left.color.id}`}
+              />
+            </div>
+          ) : null}
+          {right && right.score > 0 ? (
+            <div className="absolute right-3 top-12 sm:right-4 sm:top-14" style={{ width: PILL_WIDTH }}>
+              <ScoreRow
+                label={right.color.label}
+                score={right.score}
+                fill={right.color.fill}
+                ink={right.color.ink}
+                burst={burst === 1}
+                plus={plusFly === 1 ? plusValue : null}
+                enterKey={`team-${right.color.id}`}
+              />
+            </div>
+          ) : null}
+        </div>
+      );
+    }
 
     return (
-      <ol
-        className="flex min-h-0 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 py-16 sm:px-5"
-        aria-live="polite"
-        aria-relevant="additions text"
-        aria-label="Scores"
-      >
+      <ScoreStack ariaLabel="Scores">
         {teams.map(({ color, i, score }) => (
           <ScoreRow
             key={color.id}
@@ -56,27 +93,27 @@ export function PlayLeaderboard({
             ink={color.ink}
             burst={burst === i}
             plus={plusFly === i ? plusValue : null}
-            clock={timeMatch ? (banks[i] ?? 0) : null}
-            urgent={timeMatch && (banks[i] ?? 0) <= 10 && (banks[i] ?? 0) > 0 && turn === i}
             enterKey={`team-${color.id}`}
           />
         ))}
-      </ol>
+      </ScoreStack>
     );
   }
 
   const nameIndex = new Map(players.map((p, i) => [p.name, i]));
   const ranked = [...players]
-    .map((p) => ({ name: p.name, score: playerScores[p.name] ?? 0 }))
-    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    .map((p) => ({
+      name: p.name,
+      score: playerScores[p.name] ?? 0,
+      at: playerScoredAt[p.name] ?? Number.MAX_SAFE_INTEGER,
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score || a.at - b.at || a.name.localeCompare(b.name));
+
+  if (!ranked.length) return null;
 
   return (
-    <ol
-      className="flex min-h-0 flex-col gap-1.5 overflow-y-auto overscroll-contain px-4 py-16 sm:px-5"
-      aria-live="polite"
-      aria-relevant="additions text"
-      aria-label="Scores"
-    >
+    <ScoreStack ariaLabel="Scores">
       {ranked.map((entry) => {
         const paint = rainbowPaint(nameIndex.get(entry.name) ?? 0);
         return (
@@ -88,13 +125,24 @@ export function PlayLeaderboard({
             ink={paint.ink}
             burst={entry.name === activePlayer && burst === 0}
             plus={entry.name === activePlayer && plusFly === 0 ? plusValue : null}
-            clock={null}
-            urgent={false}
             enterKey={entry.name}
           />
         );
       })}
-    </ol>
+    </ScoreStack>
+  );
+}
+
+function ScoreStack({ children, ariaLabel }: { children: ReactNode; ariaLabel: string }) {
+  return (
+    <div
+      className="flex w-full flex-col items-stretch gap-1.5 px-3 pt-14 pb-2"
+      aria-live="polite"
+      aria-relevant="additions text"
+      aria-label={ariaLabel}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -106,7 +154,7 @@ function useEnterAnimation(enterKey: string) {
     if (seenRef.current.has(enterKey)) return;
     seenRef.current.add(enterKey);
     setEntering(true);
-    const id = window.setTimeout(() => setEntering(false), 650);
+    const id = window.setTimeout(() => setEntering(false), 700);
     return () => window.clearTimeout(id);
   }, [enterKey]);
 
@@ -117,11 +165,9 @@ function ScoreRow({
   label,
   score,
   fill,
-  ink,
+  ink: _ink,
   burst,
   plus,
-  clock,
-  urgent,
   enterKey,
 }: {
   label: string;
@@ -130,43 +176,31 @@ function ScoreRow({
   ink: string;
   burst: boolean;
   plus: number | null;
-  clock: number | null;
-  urgent: boolean;
   enterKey: string;
 }) {
   const entering = useEnterAnimation(enterKey);
-  const ptsLabel = score === 1 ? "1 pt" : `${score} pts`;
+  const ptsLabel = `${score} pts`;
 
   return (
-    <li
-      className={`relative list-none ${entering ? "vocablab-leaderboard-enter" : ""}`}
+    <div
+      className={`relative w-full ${entering ? "vocablab-leaderboard-enter" : ""}`}
       aria-label={`${label}, ${ptsLabel}`}
     >
       <span
-        className="inline-flex w-full min-w-0 items-center justify-between gap-2 rounded-full px-3 py-1.5 font-kids text-sm font-semibold shadow-sm"
+        className="flex w-full items-center justify-between gap-2 rounded-full py-1.5 pl-3.5 pr-3 font-kids font-semibold shadow-sm"
         style={{
           background: fill,
-          color: ink,
+          color: "oklch(0.995 0 0)",
+          fontSize: PILL_TYPE,
           animation: burst ? "vocablab-score-burst 0.45s ease" : undefined,
         }}
       >
         <span className="min-w-0 truncate">{label}</span>
-        <span className="shrink-0 tabular-nums leading-none">{ptsLabel}</span>
+        <span className="shrink-0 tabular-nums">{ptsLabel}</span>
       </span>
-      {clock != null ? (
-        <span
-          className="mt-1 block text-right font-kids text-sm tabular-nums"
-          style={{
-            color: ink,
-            animation: urgent ? "vocablab-timer-urgent 0.5s ease-in-out infinite" : undefined,
-          }}
-        >
-          {formatClock(clock)}
-        </span>
-      ) : null}
       {plus != null ? (
         <span
-          className="pointer-events-none absolute right-2 top-0 font-kids text-sm font-semibold"
+          className="pointer-events-none absolute -top-3 right-2 font-kids text-sm font-semibold"
           style={{
             color: fill,
             animation: "vocablab-float-plus 0.7s ease forwards",
@@ -176,6 +210,6 @@ function ScoreRow({
           +{plus}
         </span>
       ) : null}
-    </li>
+    </div>
   );
 }

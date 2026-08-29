@@ -10,7 +10,6 @@ export function NameWheel({
   angle,
   clickerDeg = 0,
   motion,
-  accent,
   namesVisible = true,
   hotGlow = true,
 }: {
@@ -18,7 +17,6 @@ export function NameWheel({
   angle: number;
   clickerDeg?: number | undefined;
   motion?: "exit" | "enter" | "to-idle" | "desk-enter" | null;
-  accent?: string | undefined;
   namesVisible?: boolean | undefined;
   hotGlow?: boolean | undefined;
 }) {
@@ -141,7 +139,11 @@ export function NameWheel({
             aria-hidden="true"
           >
             {pegs.map((peg, i) => (
-              <circle key={i} cx={peg.x} cy={peg.y} r="2.8" fill="oklch(0.32 0.03 70)" />
+              <g key={i}>
+                <circle cx={peg.x} cy={peg.y} r="5.2" fill="oklch(0.99 0.01 90)" />
+                <circle cx={peg.x} cy={peg.y} r="3.6" fill="oklch(0.28 0.04 70)" />
+                <circle cx={peg.x} cy={peg.y} r="1.4" fill="oklch(1 0 0 / 0.55)" />
+              </g>
             ))}
           </svg>
         </div>
@@ -153,26 +155,40 @@ export function NameWheel({
           aria-hidden="true"
           style={{ transform: `rotate(${clickerDeg}deg)` }}
         >
+          <defs>
+            <linearGradient id="wheel-pointer-metal" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="oklch(0.99 0.01 90)" />
+              <stop offset="28%" stopColor="oklch(0.86 0.02 85)" />
+              <stop offset="52%" stopColor="oklch(0.68 0.025 80)" />
+              <stop offset="78%" stopColor="oklch(0.9 0.03 88)" />
+              <stop offset="100%" stopColor="oklch(0.58 0.02 75)" />
+            </linearGradient>
+            <radialGradient id="wheel-pointer-knob" cx="38%" cy="32%" r="68%">
+              <stop offset="0%" stopColor="oklch(1 0 0)" />
+              <stop offset="42%" stopColor="oklch(0.9 0.02 88)" />
+              <stop offset="100%" stopColor="oklch(0.58 0.02 75)" />
+            </radialGradient>
+          </defs>
           <path
             d="M1 26 L 40 26 C 62 26, 86 14, 112 13 L 140 17 A 18 18 0 0 1 140 35 L 112 39 C 86 38, 62 26, 40 26 L 1 26 Z"
-            fill={accent ?? "oklch(0.78 0.16 88)"}
-            stroke="oklch(0.99 0.02 90)"
+            fill="url(#wheel-pointer-metal)"
+            stroke="oklch(0.99 0.01 90)"
             strokeWidth="3.2"
             strokeLinejoin="round"
           />
           <path
             d="M1 26 L 40 26 C 62 26, 86 14, 112 13 L 140 17 A 18 18 0 0 1 140 35 L 112 39 C 86 38, 62 26, 40 26 L 1 26 Z"
             fill="none"
-            stroke="oklch(0.18 0.03 80)"
-            strokeWidth="1.6"
+            stroke="oklch(0.42 0.02 75)"
+            strokeWidth="1.5"
             strokeLinejoin="round"
           />
           <circle
             cx="158"
             cy="26"
             r="16"
-            fill={accent ?? "oklch(0.78 0.16 88)"}
-            stroke="oklch(0.99 0.02 90)"
+            fill="url(#wheel-pointer-knob)"
+            stroke="oklch(0.99 0.01 90)"
             strokeWidth="3.2"
           />
           <circle
@@ -180,10 +196,10 @@ export function NameWheel({
             cy="26"
             r="16"
             fill="none"
-            stroke="oklch(0.18 0.03 80)"
-            strokeWidth="1.6"
+            stroke="oklch(0.42 0.02 75)"
+            strokeWidth="1.5"
           />
-          <circle cx="152" cy="21" r="5.5" fill="oklch(1 0 0 / 0.4)" />
+          <circle cx="152" cy="21" r="5.5" fill="oklch(1 0 0 / 0.55)" />
         </svg>
       </div>
     </div>

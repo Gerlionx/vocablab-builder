@@ -23,8 +23,8 @@ export const CLICKER_HX = 446;
 export const CLICKER_HY = 200;
 export const CLICKER_L = 52;
 
-/** Degrees before a name-dot’s centre where the tip sits on that dot’s edge. */
-export const KISS_DEG = 1.8;
+/** Degrees before a name-dot’s centre where the clicker still reads as that name. */
+export const KISS_DEG = 7;
 
 /**
  * Clockwise wheel: at 3 o’clock the dots travel down.
@@ -47,9 +47,9 @@ export function pegOffsetLocal(angle: number, count: number) {
 }
 
 /**
- * Slice under the 3 o'clock pointer. Pegs sit on slice starts; when the wheel
- * kisses a peg from below (within KISS_DEG), the upcoming slice wins so the named
- * student matches the pin the clicker is on.
+ * Slice under the 3 o'clock pointer. Pegs sit on slice starts. The gold
+ * clicker covers several degrees of the upcoming wedge, so a rest just
+ * before a peg still belongs to the name the pointer is sitting on.
  */
 export function winnerIndex(angle: number, count: number) {
   const n = Math.max(1, count);

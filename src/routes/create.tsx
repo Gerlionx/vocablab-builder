@@ -1,5 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityPosterCard,
+  wheelOfNamesModeChips,
+} from "@/components/ActivityPosterCard";
 import { AppChrome } from "@/components/AppChrome";
+import { DEFAULT_WHEEL_SETTINGS, loadWheelSettings } from "@/lib/game-settings";
+import { DEFAULT_WHEEL_GAME_MODE, type WheelGameModeId } from "@/lib/wheel-modes";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -22,37 +29,39 @@ export const Route = createFileRoute("/create")({
 });
 
 function CreatePage() {
+  const [activeMode, setActiveMode] = useState<WheelGameModeId>(DEFAULT_WHEEL_GAME_MODE);
+
+  useEffect(() => {
+    setActiveMode(loadWheelSettings().gameMode ?? DEFAULT_WHEEL_SETTINGS.gameMode);
+  }, []);
+
   return (
     <AppChrome>
-      <main className="mx-auto max-w-3xl px-6 pb-24 pt-8">
+      <main className="mx-auto max-w-4xl px-6 pb-24 pt-8">
         <Link
           to="/home"
           className="mb-3 inline-block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
         >
           &larr; Back to home
         </Link>
-        <h1 className="text-4xl font-medium tracking-tight">Activity</h1>
+        <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">Activity</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Choose an activity for the board. Prep lessons under Create first.
         </p>
 
-        <div className="mt-12 max-w-sm">
-          <Link
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:max-w-4xl">
+          <ActivityPosterCard
             to="/wheel"
-            className="group block rounded-3xl bg-card p-8 ring-1 ring-border transition-all hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <div
-              className="size-24 rounded-full ring-4 ring-primary transition-transform duration-700 group-hover:rotate-45"
-              style={{
-                background:
-                  "conic-gradient(var(--wheel-1) 0deg 60deg, var(--wheel-2) 60deg 120deg, var(--wheel-3) 120deg 180deg, var(--wheel-4) 180deg 240deg, var(--wheel-5) 240deg 300deg, var(--wheel-6) 300deg 360deg)",
-              }}
-            />
-            <h2 className="mt-6 text-xl font-semibold tracking-tight">Wheel of names</h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Spin to pick a student for oral practice.
-            </p>
-          </Link>
+            title="Wheel of Names"
+            teaser="Names spin. Someone lands. The room leans in."
+            modes={wheelOfNamesModeChips(activeMode)}
+          />
+          <ActivityPosterCard
+            title="Wheel of Time"
+            teaser="Coming soon — time-bank play, same spin energy."
+            modes={[{ id: "time-bank", label: "Time bank", active: false }]}
+            disabled
+          />
         </div>
       </main>
     </AppChrome>

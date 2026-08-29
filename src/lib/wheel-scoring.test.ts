@@ -27,13 +27,24 @@ describe("wheel scoring", () => {
     assert.equal(pointsForAnswer(settings, 2), 1);
   });
 
-  it("awards zero when hints fully revealed the answer", () => {
+  it("awards zero when the answer was fully revealed", () => {
     assert.equal(remainingPoints(settings, 0, true), 0);
     assert.equal(pointsForAnswer(settings, 1, true), 0);
   });
 
-  it("never goes below zero", () => {
-    assert.equal(remainingPoints(settings, 5), 0);
+  it("never drops a correct answer below one point from hints", () => {
+    assert.equal(remainingPoints(settings, 5), 1);
+    assert.equal(pointsForAnswer(settings, 99), 1);
+    const six: WheelSettings = { ...settings, pointsCorrect: 6 };
+    assert.equal(pointsForAnswer(six, 0), 6);
+    assert.equal(pointsForAnswer(six, 5), 1);
+    assert.equal(pointsForAnswer(six, 20), 1);
+  });
+
+  it("keeps a one-point question at one even after hints", () => {
+    const one: WheelSettings = { ...settings, pointsCorrect: 1 };
+    assert.equal(pointsForAnswer(one, 0), 1);
+    assert.equal(pointsForAnswer(one, 3), 1);
   });
 
   it("defaults skip to zero points", () => {

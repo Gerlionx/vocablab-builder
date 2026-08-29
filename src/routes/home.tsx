@@ -26,13 +26,9 @@ function HomePage() {
     <AppChrome>
       <main className="flex min-h-[calc(100vh-88px)] flex-col items-center justify-center px-6">
         <h1 className="sr-only">Vocablab home</h1>
-        <Link
-          to="/create"
-          className="grid size-40 place-items-center rounded-full bg-primary text-primary-foreground shadow-xl transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-4 focus:ring-offset-background active:scale-95"
-        >
-          <span className="text-sm font-medium uppercase tracking-[0.25em]">
-            Activity
-          </span>
+        <Link to="/create" className="vocablab-activity-orb" aria-label="Open Activity">
+          <span className="vocablab-activity-orb-face" aria-hidden="true" />
+          <span className="vocablab-activity-orb-label font-kids">Activity</span>
         </Link>
       </main>
     </AppChrome>

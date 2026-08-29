@@ -1,37 +1,65 @@
-import { buildRevealPlan, displayAnswer, maskText } from "@/lib/wheel-answer-reveal";
+import { LangFlag } from "@/components/LangFlag";
+import { displayAnswer } from "@/lib/wheel-answer-reveal";
 import { useMemo } from "react";
 
 export function AnswerRevealer({
   answerText,
   revealStep,
   accent,
+  answerLang,
+  unlocked = false,
+  onUnlock,
 }: {
   answerText: string | null;
   revealStep: number;
   accent: string;
+  answerLang: "en" | "fr";
+  /** Full answer after the teacher clicks the reveal zone. */
+  unlocked?: boolean;
+  onUnlock?: () => void;
 }) {
-  const plan = useMemo(() => (answerText ? buildRevealPlan(answerText) : []), [answerText]);
-  const display = useMemo(() => displayAnswer(plan, revealStep), [plan, revealStep]);
+  const shown = useMemo(() => {
+    if (!answerText) return "";
+    if (unlocked) return answerText;
+    return displayAnswer(answerText, revealStep).shown;
+  }, [answerText, revealStep, unlocked]);
 
-  if (!answerText) return null;
+  if (!answerText || !shown) return null;
 
-  if (!display.visible && !display.masked) return null;
+  if (unlocked) {
+    return (
+      <p
+        className="vocablab-result-copy vocablab-result-answer vocablab-answer-mask vocablab-answer-unlocked vocablab-result-pair font-kids font-semibold leading-[1.12] tracking-tight"
+        style={{ color: accent }}
+        aria-live="polite"
+      >
+        <LangFlag lang={answerLang} />
+        <span>{shown}</span>
+      </p>
+    );
+  }
 
   return (
-    <p
-      className="mt-6 font-kids font-semibold leading-tight tracking-tight"
-      style={{
-        fontSize: "clamp(2rem, 4.8vw, 3.6rem)",
-        animation: revealStep > 0 ? "vocablab-word-in 0.45s both" : undefined,
-      }}
-      aria-live="polite"
+    <button
+      type="button"
+      className="vocablab-reveal-zone vocablab-result-answer"
+      onClick={onUnlock}
+      aria-label="Reveal answer"
     >
-      {display.visible ? <span style={{ color: accent }}>{display.visible}</span> : null}
-      {display.masked ? (
-        <span className="text-muted-foreground/70" aria-hidden="true">
-          {maskText(display.masked)}
-        </span>
-      ) : null}
-    </p>
+      <p
+        className="vocablab-result-copy vocablab-answer-mask vocablab-result-pair font-kids font-semibold leading-[1.12] tracking-tight"
+        style={{ color: accent }}
+        aria-hidden="true"
+      >
+        <LangFlag lang={answerLang} />
+        <span className="vocablab-answer-dots">{shown}</span>
+      </p>
+      <span
+        className="vocablab-reveal-cue font-kids font-semibold tracking-tight"
+        style={{ color: accent }}
+      >
+        reveal
+      </span>
+    </button>
   );
 }

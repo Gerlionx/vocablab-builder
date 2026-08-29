@@ -2,7 +2,16 @@ import type { WheelSettings } from "./game-settings.ts";
 import { canRevealMore } from "./wheel-answer-reveal.ts";
 import { pointsForAnswer } from "./wheel-scoring.ts";
 
-export type TurnScene = "wheel" | "spinning" | "landed" | "exiting" | "question" | "entering";
+export type TurnScene =
+  | "toss"
+  | "wheel"
+  | "spinning"
+  | "landed"
+  | "exiting"
+  | "question"
+  | "show"
+  | "entering"
+  | "winner";
 
 /** Whether the teacher can start the question for the landed student. */
 export function canPlayLanded(scene: TurnScene, pickedName: string | null): boolean {
@@ -14,13 +23,29 @@ export function canSkipLanded(scene: TurnScene, pickedName: string | null): bool
   return canPlayLanded(scene, pickedName);
 }
 
-/** Whether hint, got-it, and missed controls are active. */
+/** Whether the question scene has a live prompt. */
 export function canAnswerQuestion(scene: TurnScene, hasPrompt: boolean): boolean {
   return scene === "question" && hasPrompt;
 }
 
-export function canRevealHint(scene: TurnScene, revealStep: number, plan: string[]): boolean {
-  return canRevealMore(revealStep, plan) && scene === "question";
+/** Hints only while the answer is still hidden. */
+export function canRevealHint(
+  scene: TurnScene,
+  revealStep: number,
+  plan: number[][],
+  answerOpen = false,
+): boolean {
+  return !answerOpen && canRevealMore(revealStep, plan) && scene === "question";
+}
+
+/** Teacher may open the full answer (stops the fuse). */
+export function canUnlockAnswer(scene: TurnScene, answerOpen: boolean): boolean {
+  return scene === "question" && !answerOpen;
+}
+
+/** Got it / Miss it only after the answer is revealed. */
+export function canMarkAnswer(scene: TurnScene, answerOpen: boolean): boolean {
+  return scene === "question" && answerOpen;
 }
 
 export function scoreForCorrect(
@@ -31,7 +56,7 @@ export function scoreForCorrect(
   return pointsForAnswer(settings, hintsUsed, fullyRevealed);
 }
 
-/** After marking correct or missed, the next spin must be explicit (stay on wheel). */
+/** After marking correct, missed, or fuse timeout, show Q+A until Next. */
 export function sceneAfterMarked(): TurnScene {
-  return "wheel";
+  return "show";
 }

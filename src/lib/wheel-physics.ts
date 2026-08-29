@@ -54,6 +54,9 @@ export class WheelPhysics {
   private lastMs = 0;
   private handlers: WheelPhysicsHandlers;
   private restNotified = true;
+  /** Mid-spin hold while Setup is open — keeps angle and remaining speed. */
+  private suspended = false;
+  private savedOmega = 0;
 
   constructor(pegCount: number, handlers: WheelPhysicsHandlers) {
     this.pegCount = Math.max(1, pegCount);
@@ -80,12 +83,39 @@ export class WheelPhysics {
   }
 
   freeze() {
+    this.suspended = false;
+    this.savedOmega = 0;
     this.mode = "rest";
     this.omega = 0;
     this.parkClicker();
   }
 
+  /** Hold a live spin in place (Setup open). Call resume() to continue. */
+  pause() {
+    if (this.suspended) return;
+    if (this.mode !== "spin") {
+      this.freeze();
+      return;
+    }
+    this.suspended = true;
+    this.savedOmega = this.omega;
+    this.omega = 0;
+    this.parkClicker();
+  }
+
+  /** Continue a spin that was held with pause(). */
+  resume() {
+    if (!this.suspended) return;
+    this.suspended = false;
+    this.mode = "spin";
+    this.omega = this.savedOmega;
+    this.savedOmega = 0;
+    this.restNotified = false;
+  }
+
   reset(deg = 0) {
+    this.suspended = false;
+    this.savedOmega = 0;
     this.angle = wrapRad((deg * Math.PI) / 180);
     this.omega = 0;
     this.mode = "rest";
@@ -95,6 +125,8 @@ export class WheelPhysics {
   }
 
   spin() {
+    this.suspended = false;
+    this.savedOmega = 0;
     this.mode = "spin";
     this.restNotified = false;
     const extra = CLICK_IMPULSE_MIN + Math.random() * (CLICK_IMPULSE_MAX - CLICK_IMPULSE_MIN);
@@ -192,6 +224,12 @@ export class WheelPhysics {
     }
 
     if (this.mode === "spin") {
+      if (this.suspended) {
+        this.emit();
+        this.raf = requestAnimationFrame(this.tick);
+        return;
+      }
+
       if (this.omega > 0) this.lastDir = 1;
       else if (this.omega < 0) this.lastDir = -1;
 

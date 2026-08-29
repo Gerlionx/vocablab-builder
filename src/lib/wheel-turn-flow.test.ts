@@ -4,9 +4,11 @@ import { buildRevealPlan } from "./wheel-answer-reveal.ts";
 import type { WheelSettings } from "./game-settings.ts";
 import {
   canAnswerQuestion,
+  canMarkAnswer,
   canPlayLanded,
   canRevealHint,
   canSkipLanded,
+  canUnlockAnswer,
   sceneAfterMarked,
   scoreForCorrect,
 } from "./wheel-turn-flow.ts";
@@ -36,11 +38,20 @@ describe("wheel turn flow", () => {
     assert.equal(canAnswerQuestion("question", false), false);
   });
 
-  it("allows hints until the reveal plan is exhausted", () => {
+  it("allows hints until the reveal plan is exhausted, and not after unlock", () => {
     const plan = buildRevealPlan("Je finis");
     assert.equal(canRevealHint("question", 0, plan), true);
+    assert.equal(canRevealHint("question", 0, plan, true), false);
     assert.equal(canRevealHint("landed", 0, plan), false);
     assert.equal(canRevealHint("question", plan.length, plan), false);
+  });
+
+  it("gates Got it / Miss it until the answer is unlocked", () => {
+    assert.equal(canUnlockAnswer("question", false), true);
+    assert.equal(canUnlockAnswer("question", true), false);
+    assert.equal(canMarkAnswer("question", false), false);
+    assert.equal(canMarkAnswer("question", true), true);
+    assert.equal(canMarkAnswer("show", true), false);
   });
 
   it("scores correct answers from remaining points after hints", () => {
@@ -49,7 +60,8 @@ describe("wheel turn flow", () => {
     assert.equal(scoreForCorrect(settings, 2, true), 0);
   });
 
-  it("returns to wheel without auto-spin after marking", () => {
-    assert.equal(sceneAfterMarked(), "wheel");
+  it("holds on the Q+A show after marking, without auto-spin", () => {
+    assert.equal(sceneAfterMarked(), "show");
+    assert.equal(canAnswerQuestion("show", true), false);
   });
 });

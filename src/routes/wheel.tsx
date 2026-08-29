@@ -1,14 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnswerRevealer } from "@/components/wheel/AnswerRevealer";
+import { Fireworks } from "@/components/wheel/Fireworks";
+import { FuseWire } from "@/components/wheel/FuseWire";
 import { NameWheel } from "@/components/wheel/NameWheel";
 import { PlayLeaderboard } from "@/components/wheel/PlayLeaderboard";
 import { SetupPanel } from "@/components/wheel/SetupPanel";
 import { TeamToss } from "@/components/wheel/TeamToss";
+import { LangFlag } from "@/components/LangFlag";
 import {
+  DEFAULT_FUSE,
   DEFAULT_WHEEL_SETTINGS,
+  loadFuseConfig,
   loadWheelSettings,
   saveWheelSettings,
+  type FuseConfig,
   type WheelSettings,
 } from "@/lib/game-settings";
 import { parseNames } from "@/lib/parse-names";
@@ -19,17 +25,24 @@ import {
   splitTeams,
   teamSlicePaint,
 } from "@/lib/team-colors";
-import { SEED_WORDS, filterWords, pickPrompt, type Word } from "@/lib/vocab-data";
+import { SEED_WORDS, filterWords, type Word } from "@/lib/vocab-data";
+import { resolveImageSrc } from "@/lib/image-library";
+import { pickPrompt, wheelPlayableWords } from "@/lib/wheel-prompt";
+import { applyWordPatches } from "@/lib/word-patches";
 import {
   readSessionNames,
   readSessionRoster,
+  readWheelMatch,
   resetSessionNamesForDesk,
   writeSessionNames,
   writeSessionRoster,
+  writeWheelMatch,
+  clearWheelMatch,
 } from "@/lib/teacher-session";
 import {
   playCorrect,
   playFanfare,
+  playFireworks,
   playMiss,
   playNameLock,
   playPegTick,
@@ -38,8 +51,17 @@ import {
   playWhoosh,
 } from "@/lib/wheel-audio";
 import { winnerIndex } from "@/lib/wheel-math";
-import { buildRevealPlan, canRevealMore, displayAnswer } from "@/lib/wheel-answer-reveal";
+import { buildRevealPlan, displayAnswer } from "@/lib/wheel-answer-reveal";
 import { pointsForAnswer } from "@/lib/wheel-scoring";
+import {
+  nextCatchUpIndex,
+  rankScores,
+  reachedScoreToWin,
+  shouldEndScoreMatch,
+  shouldEndSoloScoreMatch,
+  teamWinnerFromScores,
+  type RankedEntry,
+} from "@/lib/wheel-score-race";
 import { WheelPhysics } from "@/lib/wheel-physics";
 import {
   lastWheelLesson,
@@ -48,6 +70,12 @@ import {
   rememberWheelLessonId,
   type WheelLesson,
 } from "@/lib/wheel-lessons";
+import {
+  canMarkAnswer,
+  canRevealHint,
+  canUnlockAnswer,
+  sceneAfterMarked,
+} from "@/lib/wheel-turn-flow";
 
 export const Route = createFileRoute("/wheel")({
   head: () => ({
@@ -58,44 +86,53 @@ export const Route = createFileRoute("/wheel")({
 
 type TeamId = number;
 type Scene =
-  "toss" | "wheel" | "spinning" | "landed" | "exiting" | "question" | "entering" | "winner";
+  | "toss"
+  | "wheel"
+  | "spinning"
+  | "landed"
+  | "exiting"
+  | "question"
+  | "show"
+  | "entering"
+  | "winner";
+type ShowKind = "got" | "miss" | "timeout";
 type Prompt = { word: Word; askFrench: boolean };
 type Player = { name: string; team: TeamId };
+
+/** Prompt word colour on question and result — projector-readable azure. */
+const WORD_AZURE = "oklch(0.56 0.13 236)";
+/** Revealed answer + hint dots — same green as Got it. */
+const ANSWER_GREEN = "oklch(0.55 0.11 160)";
+/** Ask / feedback copy — elegant mid-tone navy. */
+const ASK_NAVY = "oklch(0.44 0.075 255)";
 
 function padRoster(parts: string[][]): string[][] {
   return [parts[0] ?? [], parts[1] ?? [], parts[2] ?? []];
 }
 
-function openingLesson(): WheelLesson | null {
-  if (typeof window === "undefined") return null;
-  return lastWheelLesson();
-}
-
 function WheelPage() {
-  const boot = openingLesson();
-  const [years, setYears] = useState<string[]>(boot?.years ?? ["Year 7"]);
-  const [terms, setTerms] = useState<string[]>(boot?.terms ?? ["Term 1"]);
-  const [topics, setTopics] = useState<string[]>(boot?.topics ?? []);
-  const [difficulties, setDifficulties] = useState<string[]>(boot?.difficulties ?? []);
-  const [namesText, setNamesText] = useState(() => readSessionNames());
+  const [years, setYears] = useState<string[]>(["Year 7"]);
+  const [terms, setTerms] = useState<string[]>(["Term 1"]);
+  const [topics, setTopics] = useState<string[]>([]);
+  const [difficulties, setDifficulties] = useState<string[]>([]);
+  const [namesText, setNamesText] = useState("");
   const [teamsOn, setTeamsOn] = useState(false);
   const [teamCount, setTeamCount] = useState<2 | 3>(2);
   const [colorIds, setColorIds] = useState<string[]>([...DEFAULT_TEAM_COLOR_IDS]);
-  const [roster, setRoster] = useState<string[][]>(() => readSessionRoster());
-  const [lessons, setLessons] = useState<WheelLesson[]>(() => listWheelLessons());
-  const [activeLessonId, setActiveLessonId] = useState<string | null>(boot?.id ?? null);
+  const [roster, setRoster] = useState<string[][]>(() => padRoster([[], [], []]));
+  const [lessons, setLessons] = useState<WheelLesson[]>([]);
+  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
   const [saveNote, setSaveNote] = useState<string | null>(null);
 
   const [started, setStarted] = useState(false);
+  /** Teams mode the live match was started with — Setup can diverge until Start. */
+  const [matchTeamsOn, setMatchTeamsOn] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [wheelHover, setWheelHover] = useState(false);
   const deskOpen = !started || panelOpen;
   const playing = started && !panelOpen;
   const paused = started && panelOpen;
-  const [settings, setSettings] = useState<WheelSettings>(() => {
-    if (boot) return lessonToSettings(boot);
-    return typeof window === "undefined" ? DEFAULT_WHEEL_SETTINGS : loadWheelSettings();
-  });
+  const [settings, setSettings] = useState<WheelSettings>(DEFAULT_WHEEL_SETTINGS);
   const activeLesson = lessons.find((l) => l.id === activeLessonId) ?? null;
   const [scene, setScene] = useState<Scene>("wheel");
   const [angle, setAngle] = useState(0);
@@ -103,11 +140,18 @@ function WheelPage() {
   const [picked, setPicked] = useState<Player | null>(null);
   const [prompt, setPrompt] = useState<Prompt | null>(null);
   const [revealStep, setRevealStep] = useState(0);
+  /** Full answer unlocked by teacher — gates Got it / Miss it and freezes the fuse. */
+  const [answerOpen, setAnswerOpen] = useState(false);
   const [scores, setScores] = useState<number[]>([0, 0, 0]);
   const [playerScores, setPlayerScores] = useState<Record<string, number>>({});
+  const [playerScoredAt, setPlayerScoredAt] = useState<Record<string, number>>({});
+  const [teamScoredAt, setTeamScoredAt] = useState<number[]>([0, 0, 0]);
+  const [teamSpins, setTeamSpins] = useState<number[]>([0, 0, 0]);
+  const [playerSpins, setPlayerSpins] = useState<Record<string, number>>({});
   const [banks, setBanks] = useState<number[]>([90, 90, 90]);
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
+  const [soloPodium, setSoloPodium] = useState<RankedEntry[] | null>(null);
   const [scoreBurst, setScoreBurst] = useState<TeamId | null>(null);
   const [scoreFly, setScoreFly] = useState<{
     target: TeamId;
@@ -116,6 +160,11 @@ function WheelPage() {
   } | null>(null);
   const [tossWinner, setTossWinner] = useState<TeamId>(0);
   const [usedWordIds, setUsedWordIds] = useState<Set<string>>(new Set());
+  const [fuse, setFuse] = useState<FuseConfig>(DEFAULT_FUSE);
+  const [fuseLeft, setFuseLeft] = useState<number | null>(null);
+  const [showKind, setShowKind] = useState<ShowKind | null>(null);
+  const [showPts, setShowPts] = useState(0);
+  const [matchEnding, setMatchEnding] = useState(false);
 
   const angleRef = useRef(0);
   const physicsRef = useRef<WheelPhysics | null>(null);
@@ -126,19 +175,138 @@ function WheelPage() {
   const sceneRef = useRef(scene);
   const turnRef = useRef(turn);
   const scoresRef = useRef(scores);
+  const playerScoresRef = useRef(playerScores);
+  const teamSpinsRef = useRef(teamSpins);
+  const playerSpinsRef = useRef(playerSpins);
   const emptyHandled = useRef(false);
+  const fuseHandled = useRef(false);
+  const fuseArmed = useRef(false);
   const lastKidRef = useRef<string | null>(null);
+  const endShowTimer = useRef<number | null>(null);
+  const endShowArmed = useRef(false);
   banksRef.current = banks;
   sceneRef.current = scene;
   turnRef.current = turn;
   scoresRef.current = scores;
+  playerScoresRef.current = playerScores;
+  teamSpinsRef.current = teamSpins;
+  playerSpinsRef.current = playerSpins;
   const deskOpenRef = useRef(deskOpen);
   deskOpenRef.current = deskOpen;
 
-  const pool = useMemo(
-    () => filterWords(SEED_WORDS, { years, terms, topics, difficulties }),
-    [years, terms, topics, difficulties],
-  );
+  const matchHydrated = useRef(false);
+
+  useEffect(() => {
+    setNamesText(readSessionNames());
+    setRoster(readSessionRoster());
+    setLessons(listWheelLessons());
+    const boot = lastWheelLesson();
+    if (boot) {
+      setYears(boot.years);
+      setTerms(boot.terms);
+      setTopics(boot.topics);
+      setDifficulties(boot.difficulties);
+      setActiveLessonId(boot.id);
+      setSettings(lessonToSettings(boot));
+    } else {
+      setSettings(loadWheelSettings());
+    }
+
+    const match = readWheelMatch();
+    if (match?.started) {
+      setStarted(true);
+      setMatchTeamsOn(match.matchTeamsOn);
+      setTeamsOn(match.teamsOn);
+      setTeamCount(match.teamCount);
+      setTurn(match.turn as TeamId);
+      setScores(match.scores);
+      setPlayerScores(match.playerScores);
+      setPlayerScoredAt(match.playerScoredAt);
+      setTeamScoredAt(match.teamScoredAt);
+      setTeamSpins(match.teamSpins);
+      setPlayerSpins(match.playerSpins);
+      setBanks(match.banks);
+      setUsedWordIds(new Set(match.usedWordIds));
+      if (match.colorIds.length >= 2) {
+        setColorIds([
+          match.colorIds[0] ?? DEFAULT_TEAM_COLOR_IDS[0],
+          match.colorIds[1] ?? DEFAULT_TEAM_COLOR_IDS[1],
+          match.colorIds[2] ?? DEFAULT_TEAM_COLOR_IDS[2],
+        ]);
+      }
+      if (match.soloPodium?.length) {
+        setSoloPodium(match.soloPodium);
+        setWinner(null);
+        setScene("winner");
+      } else if (match.winner === "draw" || typeof match.winner === "number") {
+        setWinner(match.winner === "draw" ? "draw" : (match.winner as TeamId));
+        setSoloPodium(null);
+        setScene("winner");
+      } else {
+        setWinner(null);
+        setSoloPodium(null);
+        setScene("wheel");
+      }
+      setPanelOpen(false);
+      setPicked(null);
+      setPrompt(null);
+      setRevealStep(0);
+    }
+    matchHydrated.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!matchHydrated.current || !started) return;
+    writeWheelMatch({
+      v: 1,
+      started: true,
+      matchTeamsOn,
+      teamsOn,
+      teamCount,
+      turn,
+      scores,
+      playerScores,
+      playerScoredAt,
+      teamScoredAt,
+      teamSpins,
+      playerSpins,
+      banks,
+      usedWordIds: [...usedWordIds],
+      colorIds,
+      winner,
+      soloPodium,
+    });
+  }, [
+    started,
+    matchTeamsOn,
+    teamsOn,
+    teamCount,
+    turn,
+    scores,
+    playerScores,
+    playerScoredAt,
+    teamScoredAt,
+    teamSpins,
+    playerSpins,
+    banks,
+    usedWordIds,
+    colorIds,
+    winner,
+    soloPodium,
+  ]);
+
+  const pool = useMemo(() => {
+    const matched = wheelPlayableWords(
+      filterWords(applyWordPatches(SEED_WORDS), {
+        years,
+        terms,
+        topics,
+        difficulties,
+      }),
+    );
+    const excluded = new Set(activeLesson?.excludedWordIds ?? []);
+    return excluded.size ? matched.filter((w) => !excluded.has(w.id)) : matched;
+  }, [years, terms, topics, difficulties, activeLesson?.excludedWordIds]);
 
   const allNames = useMemo(() => parseNames(namesText), [namesText]);
 
@@ -255,14 +423,19 @@ function WheelPage() {
   const finishMatch = useCallback(
     (nextScores: number[]) => {
       const slice = nextScores.slice(0, teamCount);
-      const max = Math.max(...slice, 0);
-      const ids = slice.map((s, i) => (s === max ? i : -1)).filter((i) => i >= 0);
-      setWinner(ids.length === 1 ? ids[0]! : "draw");
+      setSoloPodium(null);
+      setWinner(teamWinnerFromScores(slice) as TeamId | "draw");
       setScene("winner");
-      void playFanfare();
     },
     [teamCount],
   );
+
+  const finishSoloMatch = useCallback((nextScores: Record<string, number>, names: string[]) => {
+    const podium = rankScores(names.map((id) => ({ id, score: nextScores[id] ?? 0 })));
+    setWinner(null);
+    setSoloPodium(podium);
+    setScene("winner");
+  }, []);
 
   const onBankEmpty = useCallback(
     (emptyTeam: TeamId) => {
@@ -294,8 +467,40 @@ function WheelPage() {
   );
 
   useEffect(() => {
-    if (scene === "question") emptyHandled.current = false;
+    if (scene === "question") {
+      emptyHandled.current = false;
+      fuseHandled.current = false;
+      fuseArmed.current = false;
+      setAnswerOpen(false);
+      const cfg = loadFuseConfig();
+      setFuse(cfg);
+      setFuseLeft(cfg.enabled ? cfg.seconds : null);
+    }
   }, [scene, picked]);
+
+  useEffect(() => {
+    if (scene !== "question" || !fuse.enabled || panelOpen || answerOpen) return;
+    const id = window.setInterval(() => {
+      setFuseLeft((prev) => {
+        if (prev == null) return prev;
+        return Math.max(0, prev - 0.05);
+      });
+    }, 50);
+    return () => window.clearInterval(id);
+  }, [scene, fuse.enabled, panelOpen, answerOpen, picked]);
+
+  useEffect(() => {
+    if (scene !== "question" || !fuse.enabled || answerOpen) return;
+    if (fuseLeft == null) return;
+    if (fuseLeft > 0) {
+      fuseArmed.current = true;
+      return;
+    }
+    if (!fuseArmed.current || fuseHandled.current) return;
+    fuseHandled.current = true;
+    void playTimeout();
+    openShow("timeout", 0);
+  }, [fuseLeft, scene, fuse.enabled, answerOpen]);
 
   useEffect(() => {
     if (!timeMatch || scene !== "question" || panelOpen) return;
@@ -377,9 +582,16 @@ function WheelPage() {
       else sim.idle();
       return;
     }
-    if (panelOpen || scene !== "spinning") {
-      sim.freeze();
+    if (panelOpen) {
+      if (scene === "spinning") sim.pause?.();
+      else sim.freeze();
+      return;
     }
+    if (scene === "spinning") {
+      sim.resume?.();
+      return;
+    }
+    sim.freeze();
   }, [started, panelOpen, scene, wheelHover]);
 
   function syncNamesIntoTeams(text: string, count = teamCount) {
@@ -412,7 +624,10 @@ function WheelPage() {
   }
 
   function toggleTeams() {
-    if (!teamsOn) syncNamesIntoTeams(namesText);
+    if (!teamsOn) {
+      setTeamCount(2);
+      syncNamesIntoTeams(namesText, 2);
+    }
     setTeamsOn((on) => !on);
   }
 
@@ -466,6 +681,7 @@ function WheelPage() {
 
   function stopMatch() {
     setStarted(false);
+    setMatchTeamsOn(false);
     setPanelOpen(true);
     setScene("wheel");
     setPicked(null);
@@ -473,8 +689,14 @@ function WheelPage() {
     setRevealStep(0);
     setScores([0, 0, 0]);
     setPlayerScores({});
+    setPlayerScoredAt({});
+    setTeamScoredAt([0, 0, 0]);
+    setTeamSpins([0, 0, 0]);
+    setPlayerSpins({});
     setBanks([90, 90, 90]);
     setWinner(null);
+    setSoloPodium(null);
+    setMatchEnding(false);
     setUsedWordIds(new Set());
     lastKidRef.current = null;
     angleRef.current = 0;
@@ -482,12 +704,18 @@ function WheelPage() {
     setClickerDeg(0);
     physicsRef.current?.reset(0);
     physicsRef.current?.idle();
+    if (endShowTimer.current != null) {
+      window.clearTimeout(endShowTimer.current);
+      endShowTimer.current = null;
+    }
+    endShowArmed.current = false;
+    clearWheelMatch();
   }
 
   function resumeGame() {
     if (!started) return;
+    if (teamsOn !== matchTeamsOn) setTeamsOn(matchTeamsOn);
     setPanelOpen(false);
-    physicsRef.current?.freeze();
   }
 
   function loadLesson(id: string) {
@@ -524,14 +752,21 @@ function WheelPage() {
     saveWheelSettings(next);
     setSettings(next);
     setStarted(true);
+    setMatchTeamsOn(teamsOn);
     setPanelOpen(false);
     setPicked(null);
     setPrompt(null);
     setRevealStep(0);
     setScores(Array.from({ length: 3 }, () => 0));
     setPlayerScores({});
+    setPlayerScoredAt({});
+    setTeamScoredAt([0, 0, 0]);
+    setTeamSpins([0, 0, 0]);
+    setPlayerSpins({});
     setBanks(Array.from({ length: 3 }, () => next.secondsPerTeam));
     setWinner(null);
+    setSoloPodium(null);
+    setMatchEnding(false);
     setUsedWordIds(new Set());
     lastKidRef.current = null;
     angleRef.current = 0;
@@ -554,11 +789,20 @@ function WheelPage() {
     return mine.filter((p) => (banks[p.team] ?? 0) > 0);
   }
 
-  function passTurn(from: TeamId): TeamId | null {
+  function passTurn(from: TeamId, spins = teamSpinsRef.current): TeamId | null {
     const n = teamCount;
+    const sliceSpins = spins.slice(0, n);
+    const sliceScores = scoresRef.current.slice(0, n);
+    if (
+      settings.winMode === "score" &&
+      reachedScoreToWin(sliceScores, settings.scoreToWin)
+    ) {
+      const catchUp = nextCatchUpIndex(from, sliceSpins);
+      return catchUp == null ? null : (catchUp as TeamId);
+    }
     for (let step = 1; step <= n; step++) {
       const next = (from + step) % n;
-      if (!timeMatch || (banks[next] ?? 0) > 0) return next;
+      if (!timeMatch || (banks[next] ?? 0) > 0) return next as TeamId;
     }
     return null;
   }
@@ -594,10 +838,22 @@ function WheelPage() {
 
   function playLanded() {
     if (scene !== "landed" || !picked || deskOpen) return;
+    const poolPlayers = eligiblePlayers();
+    if (!poolPlayers.length) return;
+    const deg = physicsRef.current?.angleDeg ?? angle;
+    const idx = winnerIndex(deg, poolPlayers.length);
+    const landed = poolPlayers[idx] ?? picked;
+    if (landed.name !== picked.name) {
+      setPicked(landed);
+      lastKidRef.current = landed.name;
+    }
     const next = pickPrompt(pool, usedWordIds, settings.askDirection);
     setPrompt(next);
     if (next) {
-      setUsedWordIds((ids) => new Set(ids).add(next.word.id));
+      setUsedWordIds((ids) => {
+        if (next.reshuffled) return new Set([next.word.id]);
+        return new Set(ids).add(next.word.id);
+      });
     }
     setRevealStep(0);
     setScene("exiting");
@@ -629,14 +885,70 @@ function WheelPage() {
   }
 
   function finishTurn(nextScores: number[]) {
-    if (teamsOn && settings.winMode === "score") {
-      if (nextScores.slice(0, teamCount).some((s) => s >= settings.scoreToWin)) {
-        finishMatch(nextScores);
-        return;
+    endShowArmed.current = false;
+    if (endShowTimer.current != null) {
+      window.clearTimeout(endShowTimer.current);
+      endShowTimer.current = null;
+    }
+    setMatchEnding(false);
+    const who = picked;
+    let nextTeamSpins = teamSpinsRef.current;
+    let nextPlayerSpins = playerSpinsRef.current;
+
+    if (who) {
+      if (teamsOn) {
+        nextTeamSpins = [...teamSpinsRef.current];
+        nextTeamSpins[who.team] = (nextTeamSpins[who.team] ?? 0) + 1;
+        teamSpinsRef.current = nextTeamSpins;
+        setTeamSpins(nextTeamSpins);
+      } else {
+        nextPlayerSpins = {
+          ...playerSpinsRef.current,
+          [who.name]: (playerSpinsRef.current[who.name] ?? 0) + 1,
+        };
+        playerSpinsRef.current = nextPlayerSpins;
+        setPlayerSpins(nextPlayerSpins);
       }
     }
+
+    if (settings.winMode === "score") {
+      if (teamsOn) {
+        const slice = nextScores.slice(0, teamCount);
+        const spins = nextTeamSpins.slice(0, teamCount);
+        if (shouldEndScoreMatch(slice, spins, settings.scoreToWin)) {
+          finishMatch(nextScores);
+          return;
+        }
+        if (reachedScoreToWin(slice, settings.scoreToWin)) {
+          const nextTurn = passTurn(turnRef.current, nextTeamSpins);
+          if (nextTurn == null) {
+            finishMatch(nextScores);
+            return;
+          }
+          setTurn(nextTurn);
+          angleRef.current = 0;
+          setAngle(0);
+          physicsRef.current?.reset(0);
+          setPrompt(null);
+          setRevealStep(0);
+          setPicked(null);
+          setShowKind(null);
+          setShowPts(0);
+          setScene("wheel");
+          return;
+        }
+      } else {
+        const names = players.map((p) => p.name);
+        const pts = names.map((n) => playerScoresRef.current[n] ?? 0);
+        if (shouldEndSoloScoreMatch(pts, settings.scoreToWin)) {
+          finishSoloMatch(playerScoresRef.current, names);
+          return;
+        }
+      }
+    }
+
     if (teamsOn) {
-      const nextTurn = passTurn(turnRef.current);
+      const nextTurn = passTurn(turnRef.current, nextTeamSpins);
       if (nextTurn == null) {
         finishMatch(nextScores);
         return;
@@ -649,31 +961,42 @@ function WheelPage() {
     setPrompt(null);
     setRevealStep(0);
     setPicked(null);
+    setShowKind(null);
+    setShowPts(0);
     setScene("wheel");
   }
 
   function answerPoints() {
     if (!answerText) return 0;
-    const plan = buildRevealPlan(answerText);
-    const fullyRevealed = displayAnswer(plan, revealStep).complete;
+    const fullyRevealed = displayAnswer(answerText, revealStep).complete;
     return pointsForAnswer(settings, revealStep, fullyRevealed);
   }
 
   function awardPoints(pts: number) {
     if (!picked || pts <= 0) return scores;
     const next = [...scores];
+    const when = Date.now();
     if (teamsOn) {
       next[picked.team] = (next[picked.team] ?? 0) + pts;
+      scoresRef.current = next;
       setScores(next);
+      setTeamScoredAt((prev) => {
+        const times = [...prev];
+        times[picked.team] = when;
+        return times;
+      });
       setScoreBurst(picked.team);
       setScoreFly({ target: picked.team, value: pts, player: picked.name });
       window.setTimeout(() => setScoreBurst(null), 500);
       window.setTimeout(() => setScoreFly(null), 700);
     } else {
-      setPlayerScores((prev) => {
-        const updated = { ...prev, [picked.name]: (prev[picked.name] ?? 0) + pts };
-        return updated;
-      });
+      const updated = {
+        ...playerScoresRef.current,
+        [picked.name]: (playerScoresRef.current[picked.name] ?? 0) + pts,
+      };
+      playerScoresRef.current = updated;
+      setPlayerScores(updated);
+      setPlayerScoredAt((prev) => ({ ...prev, [picked.name]: when }));
       setScoreBurst(0);
       setScoreFly({ target: 0, value: pts, player: picked.name });
       window.setTimeout(() => setScoreBurst(null), 500);
@@ -682,24 +1005,77 @@ function WheelPage() {
     return next;
   }
 
+  function willFinishAfterThisTurn(): boolean {
+    if (settings.winMode !== "score" || !picked) return false;
+    if (teamsOn) {
+      const nextSpins = [...teamSpinsRef.current];
+      nextSpins[picked.team] = (nextSpins[picked.team] ?? 0) + 1;
+      const slice = scoresRef.current.slice(0, teamCount);
+      const spins = nextSpins.slice(0, teamCount);
+      if (shouldEndScoreMatch(slice, spins, settings.scoreToWin)) return true;
+      if (
+        reachedScoreToWin(slice, settings.scoreToWin) &&
+        nextCatchUpIndex(turnRef.current, spins) == null
+      ) {
+        return true;
+      }
+      return false;
+    }
+    const pts = players.map((p) => playerScoresRef.current[p.name] ?? 0);
+    return shouldEndSoloScoreMatch(pts, settings.scoreToWin);
+  }
+
+  function openShow(kind: ShowKind, pts: number) {
+    fuseHandled.current = true;
+    setShowKind(kind);
+    setShowPts(pts);
+    setScene(sceneAfterMarked());
+    if (endShowTimer.current != null) {
+      window.clearTimeout(endShowTimer.current);
+      endShowTimer.current = null;
+    }
+    endShowArmed.current = false;
+    const ending = willFinishAfterThisTurn();
+    setMatchEnding(ending);
+    if (ending) {
+      endShowArmed.current = true;
+      endShowTimer.current = window.setTimeout(() => {
+        endShowTimer.current = null;
+        if (!endShowArmed.current) return;
+        endShowArmed.current = false;
+        finishTurn(scoresRef.current);
+      }, 2000);
+    }
+  }
+
   function markCorrect() {
-    if (scene !== "question" || !picked) return;
+    if (!canMarkAnswer(scene, answerOpen) || !picked) return;
     const pts = answerPoints();
-    const next = awardPoints(pts);
+    awardPoints(pts);
     void playCorrect();
-    finishTurn(next);
+    openShow("got", pts);
   }
 
   function markMiss() {
-    if (scene !== "question") return;
+    if (!canMarkAnswer(scene, answerOpen)) return;
     void playMiss();
-    finishTurn(scores);
+    openShow("miss", 0);
+  }
+
+  function nextAfterShow() {
+    if (scene !== "show" || matchEnding) return;
+    finishTurn(scoresRef.current);
+  }
+
+  function unlockAnswer() {
+    if (!canUnlockAnswer(scene, answerOpen) || !prompt) return;
+    setAnswerOpen(true);
   }
 
   function revealHint() {
-    if (scene !== "question" || !prompt || !answerText) return;
+    if (!prompt || !answerText) return;
     const plan = buildRevealPlan(answerText);
-    if (!canRevealMore(revealStep, plan)) return;
+    if (!canRevealHint(scene, revealStep, plan, answerOpen)) return;
     setRevealStep((step) => step + 1);
   }
 
@@ -710,15 +1086,20 @@ function WheelPage() {
       if (e.code === "Space") {
         e.preventDefault();
         if (started && !panelOpen && scene === "wheel") spin();
+        if (started && !panelOpen && scene === "show") nextAfterShow();
       }
       if (scene === "landed") {
         if (e.key === "p" || e.key === "P") playLanded();
         if (e.key === "s" || e.key === "S") skipLanded();
       }
       if (scene === "question") {
-        if (e.key === "r" || e.key === "R") revealHint();
+        if ((e.key === "r" || e.key === "R") && !answerOpen) revealHint();
+        if (e.key === "Enter" && !answerOpen) unlockAnswer();
         if (e.key === "1" || e.key === "y" || e.key === "Y") markCorrect();
         if (e.key === "2" || e.key === "n" || e.key === "N") markMiss();
+      }
+      if (scene === "show") {
+        if (e.key === "Enter" || e.key === "n" || e.key === "N") nextAfterShow();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -729,14 +1110,22 @@ function WheelPage() {
   const answerText = prompt ? (prompt.askFrench ? prompt.word.english : prompt.word.french) : null;
   const askLabel = prompt
     ? prompt.askFrench
-      ? "What does this mean in English?"
-      : "How do you say this in French?"
+      ? "what does this mean in English?"
+      : "how do you say this in French?"
     : null;
 
   const activeName = scene === "question" || scene === "landed" ? (picked?.name ?? null) : null;
-  const hintAvailable = answerText ? canRevealMore(revealStep, buildRevealPlan(answerText)) : false;
+  const hintAvailable = answerText
+    ? canRevealHint(scene, revealStep, buildRevealPlan(answerText), answerOpen)
+    : false;
 
   const activePalette = palettes[picked?.team ?? turn] ?? palettes[0]!;
+  const nameColor = (() => {
+    if (teamsOn) return activePalette.fill;
+    const idx = players.findIndex((p) => p.name === picked?.name);
+    if (idx >= 0) return rainbowPaint(idx).fill;
+    return "oklch(0.58 0.21 25)";
+  })();
 
   const finishToss = useCallback(() => {
     if (deskOpenRef.current) return;
@@ -750,24 +1139,16 @@ function WheelPage() {
   const playAgain = () => startGame();
 
   function openSetup() {
-    if (scene === "spinning") {
-      physicsRef.current?.freeze();
-      setScene("wheel");
-    }
     setPanelOpen(true);
   }
 
   const showScoreRail = started && scene !== "toss" && !deskOpen;
+  const teamCorners = teamsOn && teamCount === 2;
 
   return (
     <div className="relative h-dvh overflow-hidden bg-background text-foreground">
       {showScoreRail ? (
-        <aside
-          className={`pointer-events-none absolute inset-y-0 left-0 z-30 w-[min(18rem,30vw)] ${
-            deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
-          }`}
-          aria-label="Scores"
-        >
+        teamCorners ? (
           <PlayLeaderboard
             teamsOn={teamsOn}
             teamCount={teamCount}
@@ -775,36 +1156,52 @@ function WheelPage() {
             playerScores={playerScores}
             players={players}
             palettes={palettes}
-            banks={banks}
-            timeMatch={Boolean(timeMatch)}
-            turn={turn}
+            playerScoredAt={playerScoredAt}
+            teamScoredAt={teamScoredAt}
             burst={scoreBurst}
             plusFly={scoreFly?.target ?? null}
             plusValue={scoreFly?.value ?? 0}
             activePlayer={scoreFly?.player ?? activeName}
           />
-        </aside>
+        ) : (
+          <aside
+            className={`vocablab-score-rail pointer-events-none absolute bottom-28 left-0 top-0 z-30 w-[min(15rem,32vw)] overflow-x-hidden overflow-y-auto ${
+              deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+            }`}
+            aria-label="Scores"
+          >
+            <PlayLeaderboard
+              teamsOn={teamsOn}
+              teamCount={teamCount}
+              scores={scores}
+              playerScores={playerScores}
+              players={players}
+              palettes={palettes}
+              playerScoredAt={playerScoredAt}
+              teamScoredAt={teamScoredAt}
+              burst={scoreBurst}
+              plusFly={scoreFly?.target ?? null}
+              plusValue={scoreFly?.value ?? 0}
+              activePlayer={scoreFly?.player ?? activeName}
+            />
+          </aside>
+        )
       ) : null}
 
       <div
         className={`flex h-full min-w-0 flex-col items-center bg-[radial-gradient(ellipse_at_center,oklch(0.97_0.02_220)_0%,var(--background)_70%)] transition-[margin,background] duration-500 ${
           !started || panelOpen ? "lg:mr-[36rem]" : "lg:mr-0"
-        } ${showScoreRail ? "ml-[min(18rem,30vw)]" : ""}`}
+        }`}
         style={
           {
             ["--setup-shift"]: !started || panelOpen ? "36rem" : "0px",
-            ["--score-rail-width"]: showScoreRail ? "min(18rem, 30vw)" : "0px",
-            ...(scene === "question"
-              ? teamsOn && picked && !deskOpen
+            ["--score-rail-width"]: "0px",
+            ...(scene === "question" || scene === "show"
+              ? picked && !deskOpen
                 ? {
-                    background: `radial-gradient(ellipse at center, color-mix(in oklch, ${activePalette.fill} 18%, white) 0%, var(--background) 72%)`,
+                    background: `radial-gradient(ellipse at center, color-mix(in oklch, ${nameColor} 18%, white) 0%, var(--background) 72%)`,
                   }
-                : !teamsOn && !deskOpen
-                  ? {
-                      background:
-                        "radial-gradient(ellipse at center, oklch(0.97 0.02 220) 0%, var(--background) 72%)",
-                    }
-                  : {}
+                : {}
               : {}),
           } as CSSProperties
         }
@@ -831,7 +1228,6 @@ function WheelPage() {
                 angle={angle}
                 clickerDeg={clickerDeg}
                 motion={wheelMotion}
-                accent={teamsOn && started ? activePalette.fill : undefined}
                 namesVisible={namesVisible}
                 hotGlow={playing && namesVisible}
               />
@@ -864,16 +1260,43 @@ function WheelPage() {
             >
               <QuestionStage
                 name={picked?.name ?? ""}
-                teamColor={teamsOn ? activePalette.fill : "oklch(0.58 0.21 25)"}
+                teamColor={nameColor}
                 teamInk={teamsOn ? activePalette.ink : "oklch(0.99 0 0)"}
                 askLabel={askLabel}
+                askFrench={Boolean(prompt?.askFrench)}
                 promptText={promptText}
                 answerText={answerText}
+                imageSrc={prompt?.word.image ? resolveImageSrc(prompt.word.image) : undefined}
                 revealStep={revealStep}
+                answerOpen={answerOpen}
                 hintAvailable={hintAvailable}
+                fuseEnabled={fuse.enabled}
+                fuseSeconds={fuse.seconds}
+                fusePaused={panelOpen || answerOpen}
+                fuseKey={prompt?.word.id ?? picked?.name ?? "fuse"}
+                onUnlock={unlockAnswer}
                 onHint={revealHint}
                 onCorrect={markCorrect}
                 onMiss={markMiss}
+              />
+            </div>
+          ) : null}
+          {started && scene === "show" ? (
+            <div
+              className={`absolute inset-0 z-10 flex ${
+                deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
+              }`}
+            >
+              <ResultShow
+                name={picked?.name ?? ""}
+                teamColor={nameColor}
+                askFrench={Boolean(prompt?.askFrench)}
+                englishText={prompt?.word.english ?? null}
+                frenchText={prompt?.word.french ?? null}
+                kind={showKind}
+                points={showPts}
+                hideNext={matchEnding}
+                onNext={nextAfterShow}
               />
             </div>
           ) : null}
@@ -919,14 +1342,6 @@ function WheelPage() {
               deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
             }`}
           >
-            {scene !== "spinning" ? (
-              <p
-                className="rounded-full bg-white px-7 py-2 font-kids text-3xl font-semibold shadow-md"
-                style={teamsOn ? { color: palettes[turn]?.fill } : undefined}
-              >
-                {teamsOn ? `${palettes[turn]?.label ?? "Team"}’s turn` : "Who’s next?"}
-              </p>
-            ) : null}
             <button
               type="button"
               onClick={spin}
@@ -944,7 +1359,7 @@ function WheelPage() {
           ref={tabRef}
           type="button"
           onClick={openSetup}
-          className="absolute right-0 top-1/2 z-[60] -translate-y-1/2 rounded-l-2xl bg-primary px-2 py-8 font-kids text-sm font-semibold tracking-wide text-primary-foreground shadow-lg"
+          className="absolute bottom-7 right-0 z-[60] rounded-l-2xl bg-primary px-2 py-8 font-kids text-sm font-semibold tracking-wide text-primary-foreground shadow-lg"
         >
           Set up
         </button>
@@ -971,6 +1386,7 @@ function WheelPage() {
             onSplit={() => syncNamesIntoTeams(namesText)}
             canStart={canStart}
             started={started}
+            showRestart={started && teamsOn !== matchTeamsOn}
             onStart={startGame}
             onResume={resumeGame}
             onReset={resetDesk}
@@ -983,11 +1399,14 @@ function WheelPage() {
         </aside>
       ) : null}
 
-      {scene === "winner" && winner !== null ? (
+      {scene === "winner" && (winner !== null || soloPodium) ? (
         <WinOverlay
           winner={winner}
+          soloPodium={soloPodium}
           scores={scores}
+          players={players}
           palettes={palettes}
+          teamCount={teamCount}
           onAgain={playAgain}
           away={deskOpen}
         />
@@ -999,12 +1418,19 @@ function WheelPage() {
 function QuestionStage({
   name,
   teamColor,
-  teamInk,
   askLabel,
+  askFrench,
   promptText,
   answerText,
+  imageSrc,
   revealStep,
+  answerOpen,
   hintAvailable,
+  fuseEnabled,
+  fuseSeconds,
+  fusePaused,
+  fuseKey,
+  onUnlock,
   onHint,
   onCorrect,
   onMiss,
@@ -1013,170 +1439,312 @@ function QuestionStage({
   teamColor: string;
   teamInk: string;
   askLabel: string | null;
+  askFrench: boolean;
   promptText: string | null;
   answerText: string | null;
+  imageSrc?: string;
   revealStep: number;
+  answerOpen: boolean;
   hintAvailable: boolean;
+  fuseEnabled: boolean;
+  fuseSeconds: number;
+  fusePaused: boolean;
+  fuseKey: string;
+  onUnlock: () => void;
   onHint: () => void;
   onCorrect: () => void;
   onMiss: () => void;
 }) {
+  const HINT_AMBER = "oklch(0.74 0.16 58)";
+  const questionLang: "en" | "fr" = askFrench ? "fr" : "en";
+  const answerLang: "en" | "fr" = askFrench ? "en" : "fr";
+
   return (
-    <div className="flex w-full flex-1 flex-col px-8 pb-10 pt-4">
-      <div className="mx-auto grid w-full max-w-[92rem] flex-1 items-center gap-x-10 gap-y-6 lg:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.5fr)]">
-        <div className="min-w-0">
-          {name ? (
-            <p
-              className="inline-block rounded-full px-8 py-2 font-kids font-semibold tracking-tight shadow-lg"
-              style={{
-                background: teamColor,
-                color: teamInk,
-                fontSize: "clamp(2.2rem, 5vw, 3.8rem)",
-                animation: "vocablab-name-spot 0.45s both",
-              }}
-            >
-              {name}
-            </p>
+    <div className={`vocablab-result-stage vocablab-ask-stage${imageSrc ? " has-vocab-image" : ""}`}>
+      {imageSrc ? (
+        <figure className="vocablab-ask-image">
+          <img src={imageSrc} alt="" decoding="async" />
+        </figure>
+      ) : null}
+
+      <div className="vocablab-result-composition">
+        <p className="vocablab-result-copy vocablab-result-congrats vocablab-result-line font-kids font-semibold leading-[1.12] tracking-tight">
+          <span style={{ color: teamColor }}>{name}</span>
+          {askLabel ? (
+            <>
+              <span style={{ color: ASK_NAVY }}>, {askLabel}</span>
+            </>
           ) : null}
+        </p>
+        {promptText ? (
           <p
-            className="mt-5 font-kids font-semibold leading-[1.12] tracking-tight"
-            style={{
-              fontSize: "clamp(2.2rem, 4.6vw, 4rem)",
-              color: teamColor,
-            }}
+            className="vocablab-result-copy vocablab-result-question vocablab-result-word vocablab-result-pair font-kids font-semibold leading-[1.12] tracking-tight"
+            style={{ color: WORD_AZURE }}
           >
-            {askLabel}
+            <LangFlag lang={questionLang} />
+            <span>{promptText}</span>
           </p>
-        </div>
-
-        <div className="min-w-0 text-left lg:text-right">
-          <p
-            className="font-kids font-semibold leading-[1.08] tracking-tight"
-            style={{
-              fontSize: "clamp(2.8rem, 7.2vw, 6.4rem)",
-              animation: "vocablab-word-in 0.7s cubic-bezier(0.2, 1.15, 0.3, 1) both",
-            }}
-          >
-            {promptText}
-          </p>
-          <AnswerRevealer answerText={answerText} revealStep={revealStep} accent={teamColor} />
-        </div>
-      </div>
-
-      <div className="mx-auto mt-auto flex w-full max-w-2xl flex-col items-center gap-3 pt-8">
-        {hintAvailable ? (
-          <button
-            type="button"
-            onClick={onHint}
-            className="rounded-full px-6 py-2 font-kids text-lg font-semibold shadow-sm transition hover:brightness-105 active:scale-[0.98]"
-            style={{ background: teamColor, color: teamInk }}
-          >
-            Hint
-          </button>
         ) : null}
-        <div className="flex w-full gap-4">
+        <AnswerRevealer
+          answerText={answerText}
+          revealStep={revealStep}
+          accent={ANSWER_GREEN}
+          answerLang={answerLang}
+          unlocked={answerOpen}
+          onUnlock={onUnlock}
+        />
+      </div>
+
+      <div className="vocablab-ask-controls">
+        <div className="vocablab-ask-actions">
+          {answerOpen ? (
+            <>
+              <button
+                type="button"
+                onClick={onCorrect}
+                className="vocablab-round-act bg-success text-success-foreground"
+              >
+                Got it
+              </button>
+              <button
+                type="button"
+                onClick={onMiss}
+                className="vocablab-round-act text-white"
+                style={{ background: "oklch(0.68 0.19 32)" }}
+              >
+                Miss it
+              </button>
+            </>
+          ) : hintAvailable ? (
+            <button
+              type="button"
+              onClick={onHint}
+              className="vocablab-round-act"
+              style={{ background: HINT_AMBER, color: "oklch(0.995 0 0)" }}
+            >
+              Hint
+            </button>
+          ) : (
+            <span className="vocablab-round-act vocablab-round-act-ghost" aria-hidden="true" />
+          )}
+        </div>
+
+        {fuseEnabled ? (
+          <div className="vocablab-ask-fuse">
+            <FuseWire seconds={fuseSeconds} paused={fusePaused} resetKey={fuseKey} />
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function ResultShow({
+  name,
+  teamColor,
+  askFrench,
+  englishText,
+  frenchText,
+  kind,
+  points,
+  hideNext = false,
+  onNext,
+}: {
+  name: string;
+  teamColor: string;
+  askFrench: boolean;
+  englishText: string | null;
+  frenchText: string | null;
+  kind: ShowKind | null;
+  points: number;
+  hideNext?: boolean;
+  onNext: () => void;
+}) {
+  const ptsBit = points > 0 ? ` and got ${points} pts` : "";
+  const questionText = askFrench ? frenchText : englishText;
+  const answerText = askFrench ? englishText : frenchText;
+  const questionLang: "en" | "fr" = askFrench ? "fr" : "en";
+  const answerLang: "en" | "fr" = askFrench ? "en" : "fr";
+
+  return (
+    <div className="vocablab-result-stage vocablab-ask-stage vocablab-show-stage">
+      <div className="vocablab-result-composition">
+        <p className="vocablab-result-copy vocablab-result-congrats vocablab-result-line font-kids font-semibold leading-[1.12] tracking-tight">
+          {kind === "timeout" ? (
+            <>
+              <span style={{ color: ASK_NAVY }}>Time is up, </span>
+              <span style={{ color: teamColor }}>{name}</span>
+            </>
+          ) : kind === "got" ? (
+            <>
+              <span style={{ color: teamColor }}>{name}</span>
+              <span style={{ color: ASK_NAVY }}>, you answered correctly{ptsBit}</span>
+            </>
+          ) : (
+            <>
+              <span style={{ color: teamColor }}>{name}</span>
+              <span style={{ color: ASK_NAVY }}>, missed this question</span>
+            </>
+          )}
+        </p>
+        {questionText ? (
+          <p
+            className="vocablab-result-copy vocablab-result-question vocablab-result-word vocablab-result-pair font-kids font-semibold leading-[1.12] tracking-tight"
+            style={{ color: WORD_AZURE }}
+          >
+            <LangFlag lang={questionLang} />
+            <span>{questionText}</span>
+          </p>
+        ) : null}
+        {answerText ? (
+          <p
+            className="vocablab-result-copy vocablab-result-answer vocablab-result-pair font-kids font-semibold leading-[1.12] tracking-tight"
+            style={{ color: ANSWER_GREEN }}
+          >
+            <LangFlag lang={answerLang} />
+            <span>{answerText}</span>
+          </p>
+        ) : null}
+      </div>
+      {!hideNext ? (
+        <div className="vocablab-result-next">
           <button
             type="button"
-            onClick={onCorrect}
-            className="flex-1 rounded-full bg-success py-5 font-kids text-3xl font-semibold text-success-foreground"
+            onClick={onNext}
+            className="rounded-full bg-primary px-12 py-4 font-kids text-2xl font-semibold text-primary-foreground shadow-lg sm:px-16 sm:py-5 sm:text-3xl"
           >
-            Got it
-          </button>
-          <button
-            type="button"
-            onClick={onMiss}
-            className="flex-1 rounded-full bg-surface py-5 font-kids text-3xl font-semibold"
-          >
-            Missed
+            Next
           </button>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }
 
 function WinOverlay({
   winner,
+  soloPodium,
   scores,
+  players,
   palettes,
+  teamCount = 2,
   onAgain,
   away = false,
 }: {
-  winner: TeamId | "draw";
+  winner: TeamId | "draw" | null;
+  soloPodium: RankedEntry[] | null;
   scores: number[];
+  players: { name: string; team: number }[];
   palettes: ReturnType<typeof colorById>[];
+  teamCount?: number;
   onAgain: () => void;
   away?: boolean | undefined;
 }) {
-  const palette = winner === "draw" ? palettes[0] : palettes[winner];
-  const title = winner === "draw" ? "It’s a draw" : `${palettes[winner]?.label ?? "Team"} wins`;
-  const fill = winner === "draw" ? "oklch(0.25 0.02 80)" : (palette?.fill ?? "oklch(0.25 0.02 80)");
-  const ink = winner === "draw" ? "oklch(0.99 0 0)" : (palette?.ink ?? "oklch(0.99 0 0)");
+  const solo = Boolean(soloPodium?.length);
+  const firstSolo = soloPodium?.[0];
+  const nameIndex = new Map(players.map((p, i) => [p.name, i]));
+  const soloPaint = firstSolo ? rainbowPaint(nameIndex.get(firstSolo.id) ?? 0) : null;
+  const isDraw = !solo && winner === "draw";
+  const winTeam = !solo && typeof winner === "number" ? winner : null;
+  const winPalette = solo
+    ? soloPaint
+    : winTeam != null
+      ? (palettes[winTeam] ?? palettes[0] ?? null)
+      : null;
+
+  const title = solo
+    ? firstSolo && soloPodium!.filter((p) => p.place === 1).length > 1
+      ? "It’s a tie for 1st"
+      : `${firstSolo?.id ?? "Player"} wins`
+    : isDraw
+      ? "It’s a draw"
+      : `${(winTeam != null ? palettes[winTeam]?.label : null) ?? "Team"} wins`;
+
+  const accent = (winPalette && "fill" in winPalette ? winPalette.fill : null) ?? "oklch(0.84 0.14 88)";
+  const ink = "oklch(0.99 0.01 95)";
+  const fireworkColors = useMemo(() => {
+    if (solo && soloPodium) {
+      return [
+        ...soloPodium.slice(0, 3).map((row) => rainbowPaint(nameIndex.get(row.id) ?? 0).fill),
+        "oklch(0.92 0.04 95)",
+        "#fff",
+      ];
+    }
+    if (isDraw) {
+      return [
+        ...palettes.slice(0, teamCount).map((p) => p.fill),
+        "oklch(0.84 0.14 88)",
+        "#fff",
+      ];
+    }
+    return [accent, "oklch(0.92 0.04 95)", "#fff", "oklch(0.78 0.12 55)"];
+  }, [accent, isDraw, nameIndex, palettes, solo, soloPodium, teamCount]);
+
+  useEffect(() => {
+    if (away) return;
+    void playFanfare();
+    const id = window.setTimeout(() => {
+      void playFireworks();
+    }, 180);
+    return () => window.clearTimeout(id);
+  }, [away]);
+
+  const scoreLine = solo
+    ? null
+    : palettes
+        .slice(0, teamCount)
+        .map((_, i) => scores[i] ?? 0)
+        .join(" — ");
 
   return (
     <div
-      className={`absolute inset-0 z-50 flex flex-col items-center justify-center ${
+      className={`vocablab-win-overlay absolute inset-0 z-50 flex flex-col items-center justify-center ${
         away ? "vocablab-play-layer is-away" : "vocablab-play-layer"
       }`}
-      style={{
-        background: fill,
-        color: ink,
-        animation: away ? undefined : "vocablab-wash-in 0.5s ease",
-      }}
+      style={
+        {
+          color: ink,
+          ["--win-accent"]: accent,
+        } as CSSProperties
+      }
     >
-      <Confetti color={winner === "draw" ? "oklch(0.84 0.16 88)" : (palette?.fill ?? "gold")} />
-      <p
-        className="font-kids font-semibold tracking-tight"
-        style={{
-          fontSize: "clamp(3.5rem, 10vw, 8rem)",
-          animation: "vocablab-name-spot 0.6s cubic-bezier(0.2, 1.4, 0.3, 1) both",
-        }}
-      >
-        {title}
-      </p>
-      <p className="mt-4 font-kids text-4xl tabular-nums">
-        {palettes.map((_, i) => scores[i] ?? 0).join(" — ")}
-      </p>
-      <button
-        type="button"
-        onClick={onAgain}
-        className="mt-10 rounded-full bg-white/90 px-12 py-4 font-kids text-2xl font-semibold text-foreground"
-      >
-        Play again
-      </button>
-    </div>
-  );
-}
-
-function Confetti({ color }: { color: string }) {
-  const bits = useMemo(
-    () =>
-      Array.from({ length: 28 }, (_, i) => ({
-        left: `${4 + ((i * 17) % 92)}%`,
-        delay: `${(i % 8) * 0.08}s`,
-        cx: `${-80 + (i % 7) * 28}px`,
-        cy: `${60 + (i % 5) * 18}vh`,
-        bg: i % 3 === 0 ? color : i % 3 === 1 ? "white" : "oklch(0.84 0.16 88)",
-      })),
-    [color],
-  );
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {bits.map((bit, i) => (
-        <span
-          key={i}
-          className="absolute top-4 size-3 rounded-sm"
-          style={
-            {
-              left: bit.left,
-              background: bit.bg,
-              animation: `vocablab-confetti 1.8s ease-in ${bit.delay} both`,
-              "--cx": bit.cx,
-              "--cy": bit.cy,
-            } as CSSProperties
-          }
-        />
-      ))}
+      <div className="vocablab-win-glow" aria-hidden />
+      <Fireworks colors={fireworkColors} />
+      <div className="vocablab-win-copy relative z-10 flex flex-col items-center px-6 text-center">
+        <p className="vocablab-win-kicker font-kids font-semibold uppercase tracking-[0.28em]">
+          {solo ? "Final results" : isDraw ? "Match complete" : "Winner"}
+        </p>
+        <p className="vocablab-win-title font-kids font-semibold tracking-tight">{title}</p>
+        {solo && soloPodium ? (
+          <ul className="vocablab-win-podium mt-8 flex max-h-[42vh] w-full max-w-lg flex-col gap-2.5 overflow-auto">
+            {soloPodium.map((row) => {
+              const paint = rainbowPaint(nameIndex.get(row.id) ?? 0);
+              const placeLabel =
+                row.place === 1
+                  ? "1st"
+                  : row.place === 2
+                    ? "2nd"
+                    : row.place === 3
+                      ? "3rd"
+                      : `${row.place}th`;
+              return (
+                <li key={row.id} className="vocablab-win-row font-kids font-semibold">
+                  <span className="vocablab-win-place tabular-nums">{placeLabel}</span>
+                  <span className="vocablab-win-name" style={{ color: paint.fill }}>
+                    {row.id}
+                  </span>
+                  <span className="vocablab-win-pts tabular-nums">{row.score} pts</span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="vocablab-win-score mt-5 font-kids font-semibold tabular-nums">{scoreLine}</p>
+        )}
+        <button type="button" onClick={onAgain} className="vocablab-win-again font-kids font-semibold">
+          Play again
+        </button>
+      </div>
     </div>
   );
 }

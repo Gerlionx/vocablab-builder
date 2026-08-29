@@ -8,6 +8,7 @@ const AUTH_KEY = "vocablab.teacher.auth";
 const NAMES_KEY = "vocablab.teacher.names";
 const ROSTER_KEY = "vocablab.teacher.roster";
 const ACTIVITY_KEY = "vocablab.teacher.activity";
+const WHEEL_MATCH_KEY = "vocablab.teacher.wheelMatch";
 
 const PUBLIC_PATHS = new Set(["/", "/set-password"]);
 
@@ -79,6 +80,7 @@ export function endTeacherSession() {
   sessionStorage.removeItem(NAMES_KEY);
   sessionStorage.removeItem(ROSTER_KEY);
   sessionStorage.removeItem(ACTIVITY_KEY);
+  sessionStorage.removeItem(WHEEL_MATCH_KEY);
 }
 
 export function readSessionNames(): string {
@@ -120,4 +122,117 @@ export function resetSessionNamesForDesk() {
     writeSessionNames("");
     writeSessionRoster(blankRoster());
   }
+}
+
+/**
+ * Live wheel match (scores, turn, teams mode). Survives refresh in this tab;
+ * wiped on log out / idle with the rest of the teacher session.
+ */
+export type WheelMatchSession = {
+  v: 1;
+  started: boolean;
+  matchTeamsOn: boolean;
+  teamsOn: boolean;
+  teamCount: 2 | 3;
+  turn: number;
+  scores: number[];
+  playerScores: Record<string, number>;
+  playerScoredAt: Record<string, number>;
+  teamScoredAt: number[];
+  teamSpins: number[];
+  playerSpins: Record<string, number>;
+  banks: number[];
+  usedWordIds: string[];
+  colorIds: string[];
+  winner: number | "draw" | null;
+  soloPodium: { id: string; score: number; place: number }[] | null;
+};
+
+function asScoreMap(value: unknown, allowZero = false): Record<string, number> {
+  if (!value || typeof value !== "object") return {};
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) continue;
+    if (allowZero ? n >= 0 : n > 0) out[k] = n;
+  }
+  return out;
+}
+
+function asPodium(
+  value: unknown,
+): { id: string; score: number; place: number }[] | null {
+  if (!Array.isArray(value)) return null;
+  const rows = value
+    .map((row) => {
+      if (!row || typeof row !== "object") return null;
+      const r = row as Record<string, unknown>;
+      const id = typeof r["id"] === "string" ? r["id"] : "";
+      const score = Number(r["score"]);
+      const place = Math.round(Number(r["place"]));
+      if (!id || !Number.isFinite(score) || !Number.isFinite(place) || place < 1) return null;
+      return { id, score, place };
+    })
+    .filter((r): r is { id: string; score: number; place: number } => r != null);
+  return rows.length ? rows : null;
+}
+
+function asNumList(value: unknown, len: number, fallback = 0): number[] {
+  const src = Array.isArray(value) ? value.map((n) => Number(n)) : [];
+  return Array.from({ length: len }, (_, i) =>
+    Number.isFinite(src[i]) ? (src[i] as number) : fallback,
+  );
+}
+
+export function readWheelMatch(): WheelMatchSession | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(WHEEL_MATCH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<WheelMatchSession>;
+    if (parsed.v !== 1 || typeof parsed.started !== "boolean") return null;
+    const teamCount = parsed.teamCount === 3 ? 3 : 2;
+    const winner =
+      parsed.winner === "draw"
+        ? "draw"
+        : typeof parsed.winner === "number" && parsed.winner >= 0 && parsed.winner < 3
+          ? parsed.winner
+          : null;
+    return {
+      v: 1,
+      started: parsed.started,
+      matchTeamsOn: Boolean(parsed.matchTeamsOn),
+      teamsOn: Boolean(parsed.teamsOn),
+      teamCount,
+      turn: Math.min(2, Math.max(0, Math.round(Number(parsed.turn) || 0))),
+      scores: asNumList(parsed.scores, 3, 0),
+      playerScores: asScoreMap(parsed.playerScores),
+      playerScoredAt: asScoreMap(parsed.playerScoredAt),
+      teamScoredAt: asNumList(parsed.teamScoredAt, 3, 0),
+      teamSpins: asNumList(parsed.teamSpins, 3, 0),
+      playerSpins: asScoreMap(parsed.playerSpins, true),
+      banks: asNumList(parsed.banks, 3, 90),
+      usedWordIds: Array.isArray(parsed.usedWordIds)
+        ? parsed.usedWordIds.map(String).filter(Boolean)
+        : [],
+      colorIds: Array.isArray(parsed.colorIds)
+        ? parsed.colorIds.map(String).filter(Boolean).slice(0, 3)
+        : [],
+      winner,
+      soloPodium: asPodium(parsed.soloPodium),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function writeWheelMatch(match: WheelMatchSession) {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(WHEEL_MATCH_KEY, JSON.stringify(match));
+  touchTeacherActivity();
+}
+
+export function clearWheelMatch() {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem(WHEEL_MATCH_KEY);
 }

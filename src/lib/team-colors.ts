@@ -9,7 +9,7 @@ export type TeamColor = {
 export const TEAM_COLORS: TeamColor[] = [
   { id: "red", label: "Red", fill: "oklch(0.58 0.21 25)", ink: "oklch(0.99 0 0)" },
   { id: "blue", label: "Blue", fill: "oklch(0.48 0.17 250)", ink: "oklch(0.99 0 0)" },
-  { id: "gold", label: "Gold", fill: "oklch(0.78 0.16 88)", ink: "oklch(0.18 0.04 80)" },
+  { id: "gold", label: "Gold", fill: "oklch(0.68 0.16 82)", ink: "oklch(0.99 0 0)" },
   { id: "green", label: "Green", fill: "oklch(0.55 0.15 155)", ink: "oklch(0.99 0 0)" },
   { id: "purple", label: "Purple", fill: "oklch(0.52 0.18 310)", ink: "oklch(0.99 0 0)" },
   { id: "orange", label: "Orange", fill: "oklch(0.64 0.18 52)", ink: "oklch(0.99 0 0)" },
@@ -43,7 +43,7 @@ export function splitEven(names: string[]): [string[], string[]] {
 const RAINBOW: SlicePaint[] = [
   { fill: "oklch(0.58 0.21 25)", ink: "oklch(0.99 0 0)", stroke: "oklch(0.14 0.04 25 / 0.85)" },
   { fill: "oklch(0.48 0.17 250)", ink: "oklch(0.99 0 0)", stroke: "oklch(0.14 0.05 250 / 0.85)" },
-  { fill: "oklch(0.78 0.16 88)", ink: "oklch(0.18 0.04 80)", stroke: "oklch(1 0 0 / 0.9)" },
+  { fill: "oklch(0.68 0.16 82)", ink: "oklch(0.99 0 0)", stroke: "oklch(0.14 0.04 80 / 0.85)" },
   { fill: "oklch(0.55 0.15 155)", ink: "oklch(0.99 0 0)", stroke: "oklch(0.14 0.04 155 / 0.85)" },
   { fill: "oklch(0.52 0.18 310)", ink: "oklch(0.99 0 0)", stroke: "oklch(0.14 0.05 310 / 0.85)" },
   { fill: "oklch(0.64 0.18 52)", ink: "oklch(0.99 0 0)", stroke: "oklch(0.16 0.05 52 / 0.85)" },

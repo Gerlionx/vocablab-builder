@@ -1,9 +1,9 @@
 /**
  * Wheel game modes.
  *
- * `basic` is the original classroom loop: spin → land on a name → ask a word →
- * mark correct/miss. Future modes branch from this registry — do not fold new
- * play styles into Basic; add a new id instead.
+ * `basic` is the Standard classroom loop (kept as id for saved lessons):
+ * spin → land on a name → ask a word → mark correct/miss.
+ * Future modes branch from this registry — add a new id instead of folding into Standard.
  */
 export type WheelGameModeId = "basic";
 
@@ -16,7 +16,7 @@ export type WheelGameModeDef = {
 export const WHEEL_GAME_MODES: readonly WheelGameModeDef[] = [
   {
     id: "basic",
-    label: "Basic",
+    label: "Standard",
     blurb:
       "The original mode. Spin the wheel, ask the word, score the answer. Teams optional.",
   },
@@ -30,7 +30,7 @@ export function wheelGameModeDef(id: WheelGameModeId | string | undefined): Whee
 }
 
 export function normaliseWheelGameMode(raw: unknown): WheelGameModeId {
-  if (raw === "basic") return "basic";
+  if (raw === "basic" || raw === "standard") return "basic";
   return DEFAULT_WHEEL_GAME_MODE;
 }
 
@@ -51,9 +51,7 @@ export function describeWheelGameMode(
         ? "En→Fr"
         : "Mix";
   if (modeId === "basic") {
-    const rule =
-      opts.winMode === "time" ? `${opts.secondsPerTeam}s banks` : `first to ${opts.scoreToWin}`;
-    return `${mode} · ${rule} · ${ask}`;
+    return `${mode} · first to ${opts.scoreToWin} · ${ask}`;
   }
   return mode;
 }

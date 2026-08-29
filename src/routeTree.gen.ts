@@ -18,7 +18,10 @@ import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as VocabularyRouteImport } from './routes/vocabulary'
 import { Route as WheelRouteImport } from './routes/wheel'
 import { Route as GameSettingsIndexRouteImport } from './routes/game-settings.index'
+import { Route as GameSettingsImagesRouteImport } from './routes/game-settings.images'
 import { Route as GameSettingsWheelRouteImport } from './routes/game-settings.wheel'
+import { Route as GameSettingsWheelIndexRouteImport } from './routes/game-settings.wheel.index'
+import { Route as GameSettingsWheelLessonRouteImport } from './routes/game-settings.wheel.lesson'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -65,10 +68,25 @@ const GameSettingsIndexRoute = GameSettingsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => GameSettingsRoute,
 } as any)
+const GameSettingsImagesRoute = GameSettingsImagesRouteImport.update({
+  id: '/images',
+  path: '/images',
+  getParentRoute: () => GameSettingsRoute,
+} as any)
 const GameSettingsWheelRoute = GameSettingsWheelRouteImport.update({
   id: '/wheel',
   path: '/wheel',
   getParentRoute: () => GameSettingsRoute,
+} as any)
+const GameSettingsWheelIndexRoute = GameSettingsWheelIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => GameSettingsWheelRoute,
+} as any)
+const GameSettingsWheelLessonRoute = GameSettingsWheelLessonRouteImport.update({
+  id: '/lesson',
+  path: '/lesson',
+  getParentRoute: () => GameSettingsWheelRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
@@ -80,8 +98,11 @@ export interface FileRoutesByFullPath {
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
-  '/game-settings/wheel': typeof GameSettingsWheelRoute
+  '/game-settings/images': typeof GameSettingsImagesRoute
+  '/game-settings/wheel': typeof GameSettingsWheelRouteWithChildren
   '/game-settings/': typeof GameSettingsIndexRoute
+  '/game-settings/wheel/lesson': typeof GameSettingsWheelLessonRoute
+  '/game-settings/wheel/': typeof GameSettingsWheelIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,8 +112,10 @@ export interface FileRoutesByTo {
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
-  '/game-settings/wheel': typeof GameSettingsWheelRoute
+  '/game-settings/images': typeof GameSettingsImagesRoute
   '/game-settings': typeof GameSettingsIndexRoute
+  '/game-settings/wheel/lesson': typeof GameSettingsWheelLessonRoute
+  '/game-settings/wheel': typeof GameSettingsWheelIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -104,8 +127,11 @@ export interface FileRoutesById {
   '/set-password': typeof SetPasswordRoute
   '/vocabulary': typeof VocabularyRoute
   '/wheel': typeof WheelRoute
-  '/game-settings/wheel': typeof GameSettingsWheelRoute
+  '/game-settings/images': typeof GameSettingsImagesRoute
+  '/game-settings/wheel': typeof GameSettingsWheelRouteWithChildren
   '/game-settings/': typeof GameSettingsIndexRoute
+  '/game-settings/wheel/lesson': typeof GameSettingsWheelLessonRoute
+  '/game-settings/wheel/': typeof GameSettingsWheelIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,8 +144,11 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
+    | '/game-settings/images'
     | '/game-settings/wheel'
     | '/game-settings/'
+    | '/game-settings/wheel/lesson'
+    | '/game-settings/wheel/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -129,8 +158,10 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
-    | '/game-settings/wheel'
+    | '/game-settings/images'
     | '/game-settings'
+    | '/game-settings/wheel/lesson'
+    | '/game-settings/wheel'
   id:
     | '__root__'
     | '/'
@@ -141,8 +172,11 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/vocabulary'
     | '/wheel'
+    | '/game-settings/images'
     | '/game-settings/wheel'
     | '/game-settings/'
+    | '/game-settings/wheel/lesson'
+    | '/game-settings/wheel/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -221,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameSettingsIndexRouteImport
       parentRoute: typeof GameSettingsRoute
     }
+    '/game-settings/images': {
+      id: '/game-settings/images'
+      path: '/images'
+      fullPath: '/game-settings/images'
+      preLoaderRoute: typeof GameSettingsImagesRouteImport
+      parentRoute: typeof GameSettingsRoute
+    }
     '/game-settings/wheel': {
       id: '/game-settings/wheel'
       path: '/wheel'
@@ -228,16 +269,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GameSettingsWheelRouteImport
       parentRoute: typeof GameSettingsRoute
     }
+    '/game-settings/wheel/': {
+      id: '/game-settings/wheel/'
+      path: '/'
+      fullPath: '/game-settings/wheel/'
+      preLoaderRoute: typeof GameSettingsWheelIndexRouteImport
+      parentRoute: typeof GameSettingsWheelRoute
+    }
+    '/game-settings/wheel/lesson': {
+      id: '/game-settings/wheel/lesson'
+      path: '/lesson'
+      fullPath: '/game-settings/wheel/lesson'
+      preLoaderRoute: typeof GameSettingsWheelLessonRouteImport
+      parentRoute: typeof GameSettingsWheelRoute
+    }
   }
 }
 
+interface GameSettingsWheelRouteChildren {
+  GameSettingsWheelLessonRoute: typeof GameSettingsWheelLessonRoute
+  GameSettingsWheelIndexRoute: typeof GameSettingsWheelIndexRoute
+}
+
+const GameSettingsWheelRouteChildren: GameSettingsWheelRouteChildren = {
+  GameSettingsWheelLessonRoute: GameSettingsWheelLessonRoute,
+  GameSettingsWheelIndexRoute: GameSettingsWheelIndexRoute,
+}
+
+const GameSettingsWheelRouteWithChildren =
+  GameSettingsWheelRoute._addFileChildren(GameSettingsWheelRouteChildren)
+
 interface GameSettingsRouteChildren {
-  GameSettingsWheelRoute: typeof GameSettingsWheelRoute
+  GameSettingsImagesRoute: typeof GameSettingsImagesRoute
+  GameSettingsWheelRoute: typeof GameSettingsWheelRouteWithChildren
   GameSettingsIndexRoute: typeof GameSettingsIndexRoute
 }
 
 const GameSettingsRouteChildren: GameSettingsRouteChildren = {
-  GameSettingsWheelRoute: GameSettingsWheelRoute,
+  GameSettingsImagesRoute: GameSettingsImagesRoute,
+  GameSettingsWheelRoute: GameSettingsWheelRouteWithChildren,
   GameSettingsIndexRoute: GameSettingsIndexRoute,
 }
 

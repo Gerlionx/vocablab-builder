@@ -1,6 +1,7 @@
 import {
   DEFAULT_WHEEL_GAME_MODE,
   normaliseWheelGameMode,
+  wheelGameModeDef,
   type WheelGameModeId,
 } from "@/lib/wheel-modes";
 
@@ -11,7 +12,7 @@ export type AskDirection = "french" | "english" | "random";
 
 /** Runtime settings applied when a lesson (or defaults) starts a match. */
 export type WheelSettings = {
-  /** Which game mode drives the match. Basic is the original loop. */
+  /** Which game mode drives the match. Standard (`basic` id) is the original loop. */
   gameMode: WheelGameModeId;
   winMode: WinMode;
   scoreToWin: number;
@@ -55,7 +56,7 @@ export function loadWheelSettings(): WheelSettings {
     );
     return {
       gameMode: normaliseWheelGameMode(parsed.gameMode),
-      winMode: parsed.winMode === "time" ? "time" : "score",
+      winMode: "score",
       scoreToWin: clamp(Number(parsed.scoreToWin) || DEFAULT_WHEEL_SETTINGS.scoreToWin, 5, 200),
       pointsCorrect,
       pointsRevealed: clamp(
@@ -88,6 +89,42 @@ export function saveWheelSettings(next: WheelSettings) {
   localStorage.setItem(KEY, JSON.stringify(next));
 }
 
+const FUSE_KEY = "vocablab.wheel.fuse";
+
+export type FuseConfig = {
+  /** When false, no detonating wire and no fuse timeout. */
+  enabled: boolean;
+  seconds: number;
+};
+
+export const DEFAULT_FUSE: FuseConfig = { enabled: true, seconds: 30 };
+
+export function loadFuseConfig(): FuseConfig {
+  if (typeof window === "undefined") return DEFAULT_FUSE;
+  try {
+    const raw = localStorage.getItem(FUSE_KEY);
+    if (!raw) return DEFAULT_FUSE;
+    const parsed = JSON.parse(raw) as Partial<FuseConfig>;
+    const seconds = Number(parsed.seconds);
+    return {
+      enabled: parsed.enabled !== false,
+      seconds: Number.isFinite(seconds) ? clamp(seconds, 1, 600) : DEFAULT_FUSE.seconds,
+    };
+  } catch {
+    return DEFAULT_FUSE;
+  }
+}
+
+export function saveFuseConfig(next: FuseConfig) {
+  localStorage.setItem(
+    FUSE_KEY,
+    JSON.stringify({
+      enabled: Boolean(next.enabled),
+      seconds: clamp(Number(next.seconds) || DEFAULT_FUSE.seconds, 1, 600),
+    }),
+  );
+}
+
 export function describeSettings(s: WheelSettings) {
   const pts = s.pointsCorrect === 1 ? "1 pt direct" : `${s.pointsCorrect} pts direct`;
   const reveal = s.pointsRevealed === 1 ? "1 pt hinted" : `${s.pointsRevealed} pts hinted`;
@@ -97,10 +134,7 @@ export function describeSettings(s: WheelSettings) {
       : s.askDirection === "english"
         ? "English → French"
         : "mixed";
-  const mode = s.gameMode === "basic" ? "Basic" : s.gameMode;
-  if (s.winMode === "time") {
-    return `${mode} · Time · ${s.secondsPerTeam}s per team · ${pts} · ${reveal} · ${ask}`;
-  }
+  const mode = wheelGameModeDef(s.gameMode).label;
   return `${mode} · First to ${s.scoreToWin} · ${pts} · ${reveal} · ${ask}`;
 }
 

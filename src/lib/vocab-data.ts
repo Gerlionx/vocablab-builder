@@ -574,43 +574,18 @@ export function nextId() {
   return `w${++counter}`;
 }
 
-export type VocabFilter = {
-  years: string[];
-  terms: string[];
-  topics: string[];
-  difficulties: string[];
-};
+export {
+  filterWords,
+  toggleFilterValue,
+  type FilterWordsOptions,
+  type VocabFilter,
+} from "./vocab-filter";
 
-/** Empty list = any (all). Otherwise word must match one of the chosen values. */
-export function filterWords(words: Word[], filter: VocabFilter): Word[] {
-  return words.filter((word) => {
-    if (!word.french.trim() || !word.english.trim()) return false;
-    if (filter.years.length && !filter.years.includes(word.year)) return false;
-    if (filter.terms.length && !filter.terms.includes(word.term)) return false;
-    if (filter.topics.length && !filter.topics.includes(word.topic)) return false;
-    if (filter.difficulties.length && !filter.difficulties.includes(word.difficulty)) return false;
-    return true;
-  });
-}
+export {
+  isGapFillPhrase,
+  isWheelPlayableWord,
+  pickPrompt,
+  wheelPlayableWords,
+} from "./wheel-prompt";
+export type { PromptableWord } from "./wheel-prompt";
 
-export function toggleFilterValue(current: string[], value: string): string[] {
-  if (current.includes(value)) return current.filter((v) => v !== value);
-  return [...current, value];
-}
-
-export function pickPrompt(
-  words: Word[],
-  avoidIds: Set<string> = new Set(),
-  direction: "french" | "english" | "random" = "random",
-): {
-  word: Word;
-  askFrench: boolean;
-} | null {
-  if (!words.length) return null;
-  const fresh = words.filter((word) => !avoidIds.has(word.id));
-  const pool = fresh.length ? fresh : words;
-  const word = pool[Math.floor(Math.random() * pool.length)]!;
-  const askFrench =
-    direction === "french" ? true : direction === "english" ? false : Math.random() < 0.5;
-  return { word, askFrench };
-}

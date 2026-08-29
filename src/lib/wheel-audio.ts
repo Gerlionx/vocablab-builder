@@ -150,6 +150,63 @@ export async function playFanfare() {
   notes.forEach((freq, i) => {
     tone(ac, freq, t + i * 0.11, i === notes.length - 1 ? 0.55 : 0.22, "triangle", 0.13);
   });
+  // Soft sparkle trail after the chord
+  [1318.5, 1568, 2093].forEach((freq, i) => {
+    tone(ac, freq, t + 0.72 + i * 0.08, 0.35, "sine", 0.06);
+  });
+}
+
+/** Crackles + rising whistle for the winner fireworks screen. */
+export async function playFireworks() {
+  const ac = await audio();
+  if (!ac) return;
+  const t0 = ac.currentTime;
+
+  const crackle = (at: number, bright: number) => {
+    const dur = 0.12 + Math.random() * 0.1;
+    const samples = Math.max(1, Math.floor(ac.sampleRate * dur));
+    const buf = ac.createBuffer(1, samples, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < samples; i++) {
+      const x = i / samples;
+      data[i] = (Math.random() * 2 - 1) * (1 - x) * (1 - x);
+    }
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const bp = ac.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.frequency.value = 1800 + bright * 2200;
+    bp.Q.value = 1.4;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.05 + bright * 0.04, at + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    src.connect(bp).connect(g).connect(ac.destination);
+    src.start(at);
+    src.stop(at + dur + 0.02);
+  };
+
+  const whistle = (at: number) => {
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(420, at);
+    osc.frequency.exponentialRampToValueAtTime(1400, at + 0.28);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.exponentialRampToValueAtTime(0.045, at + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.32);
+    osc.connect(g);
+    g.connect(ac.destination);
+    osc.start(at);
+    osc.stop(at + 0.34);
+  };
+
+  for (let i = 0; i < 7; i++) {
+    const at = t0 + 0.12 + i * 0.28 + Math.random() * 0.08;
+    whistle(at);
+    crackle(at + 0.26, 0.4 + Math.random() * 0.6);
+    if (Math.random() > 0.4) crackle(at + 0.34, Math.random());
+  }
 }
 
 export async function playUrgentTick() {
