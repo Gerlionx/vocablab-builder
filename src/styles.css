@@ -529,8 +529,14 @@
 }
 
 .vocablab-answer-dots {
+  display: inline;
+  min-width: 0;
   letter-spacing: 0.16em;
-  white-space: nowrap;
+  line-height: 1.22;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  /* Continuous ● runs have no spaces — must break mid-sequence on narrow screens. */
+  word-break: break-all;
   transition: opacity 0.15s ease;
 }
 
@@ -538,6 +544,7 @@
 .vocablab-reveal-zone {
   position: relative;
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   max-width: 100%;
@@ -718,11 +725,20 @@
 
 .vocablab-result-pair {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: 0.35em;
   width: fit-content;
   max-width: 100%;
+  min-width: 0;
+}
+
+.vocablab-result-pair > span {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .vocablab-lang-flag {
@@ -929,10 +945,39 @@
     padding-right: 1.15rem;
   }
 
+  .vocablab-result-composition {
+    --result-type: clamp(1.4rem, 6.2vw, 2.35rem);
+  }
+
   .vocablab-result-congrats,
   .vocablab-result-question,
-  .vocablab-result-answer {
-    max-width: 94%;
+  .vocablab-result-answer,
+  .vocablab-reveal-zone {
+    max-width: 100%;
+    width: min(100%, 100%);
+  }
+
+  .vocablab-ask-stage .vocablab-result-question,
+  .vocablab-ask-stage .vocablab-result-answer,
+  .vocablab-show-stage .vocablab-result-question,
+  .vocablab-show-stage .vocablab-result-answer {
+    margin-left: 0;
+    margin-right: 0;
+    translate: none;
+  }
+
+  .vocablab-ask-stage .vocablab-result-pair,
+  .vocablab-show-stage .vocablab-result-pair,
+  .vocablab-reveal-zone .vocablab-result-pair {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .vocablab-answer-dots {
+    letter-spacing: 0.1em;
+    line-height: 1.3;
   }
 }
 
