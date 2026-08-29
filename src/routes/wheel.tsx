@@ -11,12 +11,15 @@ import { LangFlag } from "@/components/LangFlag";
 import {
   DEFAULT_FUSE,
   DEFAULT_WHEEL_SETTINGS,
+  applyModeSettingsToDraft,
   loadFuseConfig,
+  loadModeSettings,
   loadWheelSettings,
   saveWheelSettings,
   type FuseConfig,
   type WheelSettings,
 } from "@/lib/game-settings";
+import { isWheelGameModeId, type WheelGameModeId } from "@/lib/wheel-modes";
 import { parseNames } from "@/lib/parse-names";
 import {
   colorById,
@@ -62,6 +65,16 @@ import {
   teamWinnerFromScores,
   type RankedEntry,
 } from "@/lib/wheel-score-race";
+import {
+  applyCorrectEscape,
+  applySkipPenalty,
+  countAlive,
+  elapsedFromRoundClock,
+  rankTimeBankContestants,
+  roundClockSeconds,
+  shouldEndTimeBankMatch,
+  soleSurvivorIndex,
+} from "@/lib/wheel-time-bank";
 import { WheelPhysics } from "@/lib/wheel-physics";
 import {
   lastWheelLesson,
@@ -78,11 +91,35 @@ import {
 } from "@/lib/wheel-turn-flow";
 
 export const Route = createFileRoute("/wheel")({
+  validateSearch: (raw: Record<string, unknown>): { mode?: WheelGameModeId } => {
+    const mode = raw["mode"];
+    return isWheelGameModeId(mode) ? { mode } : {};
+  },
   head: () => ({
     meta: [{ title: "Wheel of names — Vocablab" }],
   }),
   component: WheelPage,
 });
+
+/** Apply Activity-board mode choice onto lesson/global settings for this play session. */
+function settingsForPlayMode(base: WheelSettings, mode: WheelGameModeId): WheelSettings {
+  return applyModeSettingsToDraft(base, mode, loadModeSettings());
+}
+
+function readRequestedPlayMode(urlMode?: WheelGameModeId): WheelGameModeId | null {
+  if (urlMode) return urlMode;
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem("vocablab.wheel.playMode");
+    if (isWheelGameModeId(raw)) {
+      sessionStorage.removeItem("vocablab.wheel.playMode");
+      return raw;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 type TeamId = number;
 type Scene =
@@ -111,6 +148,7 @@ function padRoster(parts: string[][]): string[][] {
 }
 
 function WheelPage() {
+  const { mode: modeFromUrl } = Route.useSearch();
   const [years, setYears] = useState<string[]>(["Year 7"]);
   const [terms, setTerms] = useState<string[]>(["Term 1"]);
   const [topics, setTopics] = useState<string[]>([]);
@@ -149,6 +187,13 @@ function WheelPage() {
   const [teamSpins, setTeamSpins] = useState<number[]>([0, 0, 0]);
   const [playerSpins, setPlayerSpins] = useState<Record<string, number>>({});
   const [banks, setBanks] = useState<number[]>([90, 90, 90]);
+  const [teamEliminated, setTeamEliminated] = useState<boolean[]>([false, false, false]);
+  const [teamInBuffer, setTeamInBuffer] = useState<boolean[]>([false, false, false]);
+  const [playerBanks, setPlayerBanks] = useState<Record<string, number>>({});
+  const [playerEliminated, setPlayerEliminated] = useState<Record<string, boolean>>({});
+  const [playerInBuffer, setPlayerInBuffer] = useState<Record<string, boolean>>({});
+  const [eliminationOrder, setEliminationOrder] = useState<string[]>([]);
+  const [roundClockStart, setRoundClockStart] = useState(0);
   const [turn, setTurn] = useState<TeamId>(0);
   const [winner, setWinner] = useState<TeamId | "draw" | null>(null);
   const [soloPodium, setSoloPodium] = useState<RankedEntry[] | null>(null);
@@ -172,19 +217,34 @@ function WheelPage() {
   const panelRef = useRef<HTMLElement>(null);
   const tabRef = useRef<HTMLButtonElement>(null);
   const banksRef = useRef(banks);
+  const teamEliminatedRef = useRef(teamEliminated);
+  const teamInBufferRef = useRef(teamInBuffer);
+  const playerBanksRef = useRef(playerBanks);
+  const playerEliminatedRef = useRef(playerEliminated);
+  const playerInBufferRef = useRef(playerInBuffer);
+  const eliminationOrderRef = useRef(eliminationOrder);
+  const roundClockStartRef = useRef(roundClockStart);
+  const fuseLeftRef = useRef(fuseLeft);
   const sceneRef = useRef(scene);
   const turnRef = useRef(turn);
   const scoresRef = useRef(scores);
   const playerScoresRef = useRef(playerScores);
   const teamSpinsRef = useRef(teamSpins);
   const playerSpinsRef = useRef(playerSpins);
-  const emptyHandled = useRef(false);
   const fuseHandled = useRef(false);
   const fuseArmed = useRef(false);
   const lastKidRef = useRef<string | null>(null);
   const endShowTimer = useRef<number | null>(null);
   const endShowArmed = useRef(false);
   banksRef.current = banks;
+  teamEliminatedRef.current = teamEliminated;
+  teamInBufferRef.current = teamInBuffer;
+  playerBanksRef.current = playerBanks;
+  playerEliminatedRef.current = playerEliminated;
+  playerInBufferRef.current = playerInBuffer;
+  eliminationOrderRef.current = eliminationOrder;
+  roundClockStartRef.current = roundClockStart;
+  fuseLeftRef.current = fuseLeft;
   sceneRef.current = scene;
   turnRef.current = turn;
   scoresRef.current = scores;
@@ -201,65 +261,96 @@ function WheelPage() {
     setRoster(readSessionRoster());
     setLessons(listWheelLessons());
     const boot = lastWheelLesson();
+    let nextSettings = boot ? lessonToSettings(boot) : loadWheelSettings();
     if (boot) {
       setYears(boot.years);
       setTerms(boot.terms);
       setTopics(boot.topics);
       setDifficulties(boot.difficulties);
       setActiveLessonId(boot.id);
-      setSettings(lessonToSettings(boot));
-    } else {
-      setSettings(loadWheelSettings());
+    }
+
+    const requested = readRequestedPlayMode(modeFromUrl);
+    if (requested) {
+      nextSettings = settingsForPlayMode(nextSettings, requested);
+      saveWheelSettings(nextSettings);
     }
 
     const match = readWheelMatch();
     if (match?.started) {
-      setStarted(true);
-      setMatchTeamsOn(match.matchTeamsOn);
-      setTeamsOn(match.teamsOn);
-      setTeamCount(match.teamCount);
-      setTurn(match.turn as TeamId);
-      setScores(match.scores);
-      setPlayerScores(match.playerScores);
-      setPlayerScoredAt(match.playerScoredAt);
-      setTeamScoredAt(match.teamScoredAt);
-      setTeamSpins(match.teamSpins);
-      setPlayerSpins(match.playerSpins);
-      setBanks(match.banks);
-      setUsedWordIds(new Set(match.usedWordIds));
-      if (match.colorIds.length >= 2) {
-        setColorIds([
-          match.colorIds[0] ?? DEFAULT_TEAM_COLOR_IDS[0],
-          match.colorIds[1] ?? DEFAULT_TEAM_COLOR_IDS[1],
-          match.colorIds[2] ?? DEFAULT_TEAM_COLOR_IDS[2],
-        ]);
-      }
-      if (match.soloPodium?.length) {
-        setSoloPodium(match.soloPodium);
-        setWinner(null);
-        setScene("winner");
-      } else if (match.winner === "draw" || typeof match.winner === "number") {
-        setWinner(match.winner === "draw" ? "draw" : (match.winner as TeamId));
-        setSoloPodium(null);
-        setScene("winner");
-      } else {
+      const stamped = match.gameMode;
+      const conflict =
+        requested != null &&
+        ((stamped != null && stamped !== requested) ||
+          (stamped == null && requested === "time"));
+      if (conflict) {
+        clearWheelMatch();
+        setStarted(false);
         setWinner(null);
         setSoloPodium(null);
         setScene("wheel");
+        setPanelOpen(true);
+      } else {
+        if (stamped && stamped !== nextSettings.gameMode) {
+          nextSettings = settingsForPlayMode(nextSettings, stamped);
+          saveWheelSettings(nextSettings);
+        }
+        setStarted(true);
+        setMatchTeamsOn(match.matchTeamsOn);
+        setTeamsOn(match.teamsOn);
+        setTeamCount(match.teamCount);
+        setTurn(match.turn as TeamId);
+        setScores(match.scores);
+        setPlayerScores(match.playerScores);
+        setPlayerScoredAt(match.playerScoredAt);
+        setTeamScoredAt(match.teamScoredAt);
+        setTeamSpins(match.teamSpins);
+        setPlayerSpins(match.playerSpins);
+        setBanks(match.banks);
+        setTeamEliminated(match.teamEliminated);
+        setTeamInBuffer(match.teamInBuffer);
+        setPlayerBanks(match.playerBanks);
+        setPlayerEliminated(match.playerEliminated);
+        setPlayerInBuffer(match.playerInBuffer);
+        setEliminationOrder(match.eliminationOrder);
+        setUsedWordIds(new Set(match.usedWordIds));
+        if (match.colorIds.length >= 2) {
+          setColorIds([
+            match.colorIds[0] ?? DEFAULT_TEAM_COLOR_IDS[0],
+            match.colorIds[1] ?? DEFAULT_TEAM_COLOR_IDS[1],
+            match.colorIds[2] ?? DEFAULT_TEAM_COLOR_IDS[2],
+          ]);
+        }
+        if (match.soloPodium?.length) {
+          setSoloPodium(match.soloPodium);
+          setWinner(null);
+          setScene("winner");
+        } else if (match.winner === "draw" || typeof match.winner === "number") {
+          setWinner(match.winner === "draw" ? "draw" : (match.winner as TeamId));
+          setSoloPodium(null);
+          setScene("winner");
+        } else {
+          setWinner(null);
+          setSoloPodium(null);
+          setScene("wheel");
+        }
+        setPanelOpen(false);
+        setPicked(null);
+        setPrompt(null);
+        setRevealStep(0);
       }
-      setPanelOpen(false);
-      setPicked(null);
-      setPrompt(null);
-      setRevealStep(0);
     }
+
+    setSettings(nextSettings);
     matchHydrated.current = true;
-  }, []);
+  }, [modeFromUrl]);
 
   useEffect(() => {
     if (!matchHydrated.current || !started) return;
     writeWheelMatch({
       v: 1,
       started: true,
+      gameMode: settings.gameMode,
       matchTeamsOn,
       teamsOn,
       teamCount,
@@ -271,6 +362,12 @@ function WheelPage() {
       teamSpins,
       playerSpins,
       banks,
+      teamEliminated,
+      teamInBuffer,
+      playerBanks,
+      playerEliminated,
+      playerInBuffer,
+      eliminationOrder,
       usedWordIds: [...usedWordIds],
       colorIds,
       winner,
@@ -278,6 +375,7 @@ function WheelPage() {
     });
   }, [
     started,
+    settings.gameMode,
     matchTeamsOn,
     teamsOn,
     teamCount,
@@ -289,6 +387,12 @@ function WheelPage() {
     teamSpins,
     playerSpins,
     banks,
+    teamEliminated,
+    teamInBuffer,
+    playerBanks,
+    playerEliminated,
+    playerInBuffer,
+    eliminationOrder,
     usedWordIds,
     colorIds,
     winner,
@@ -341,9 +445,16 @@ function WheelPage() {
   );
 
   const wheelPlayers = useMemo(() => {
-    if (!teamsOn) return players;
-    return players.filter((p) => p.team === turn);
-  }, [players, teamsOn, turn]);
+    if (!teamsOn) {
+      if (started && settings.gameMode === "time") {
+        return players.filter((p) => !playerEliminated[p.name]);
+      }
+      return players;
+    }
+    return players.filter(
+      (p) => p.team === turn && !(started && settings.gameMode === "time" && teamEliminated[p.team]),
+    );
+  }, [players, teamsOn, turn, started, settings.gameMode, playerEliminated, teamEliminated]);
 
   const slices = useMemo(() => {
     const list = wheelPlayers.length ? wheelPlayers : [{ name: "Add names", team: turn }];
@@ -389,8 +500,8 @@ function WheelPage() {
     pool.length > 0 &&
     (teamsOn ? roster.slice(0, teamCount).every((col) => col.length > 0) : allNames.length > 0);
 
-  const matchOn = started && teamsOn;
-  const timeMatch = matchOn && settings.winMode === "time";
+  /** Time bank elimination mode — teams or solo. */
+  const timeBankMatch = started && settings.gameMode === "time";
   const showPlayWheel = playing && onDisc;
   const showWheel = !started || onDisc || paused;
   const namesVisible = scene !== "exiting";
@@ -437,49 +548,102 @@ function WheelPage() {
     setScene("winner");
   }, []);
 
-  const onBankEmpty = useCallback(
-    (emptyTeam: TeamId) => {
-      if (sceneRef.current === "winner") return;
-      void playTimeout();
-      setRevealStep(0);
-      setPrompt(null);
-      const n = teamCount;
-      let next: TeamId | null = null;
-      for (let step = 1; step <= n; step++) {
-        const cand = (emptyTeam + step) % n;
-        if ((banksRef.current[cand] ?? 0) > 0) {
-          next = cand;
-          break;
-        }
+  const finishTimeBankTeamMatch = useCallback(() => {
+    const elim = teamEliminatedRef.current.slice(0, teamCount);
+    const survivor = soleSurvivorIndex(elim);
+    setSoloPodium(null);
+    setWinner(survivor == null ? "draw" : (survivor as TeamId));
+    setScene("winner");
+  }, [teamCount]);
+
+  const finishTimeBankSoloMatch = useCallback((names: string[]) => {
+    const ranked = rankTimeBankContestants(
+      names.map((id) => ({
+        id,
+        bank: playerBanksRef.current[id] ?? 0,
+        eliminated: Boolean(playerEliminatedRef.current[id]),
+      })),
+      eliminationOrderRef.current,
+    );
+    setWinner(null);
+    setSoloPodium(
+      ranked.map((row) => ({
+        id: row.id,
+        score: Math.round(row.bank),
+        place: row.place,
+      })),
+    );
+    setScene("winner");
+  }, []);
+
+  const eliminateContestant = useCallback(
+    (who: Player) => {
+      if (teamsOn) {
+        const next = [...teamEliminatedRef.current];
+        if (next[who.team]) return;
+        next[who.team] = true;
+        teamEliminatedRef.current = next;
+        setTeamEliminated(next);
+        const id = String(who.team);
+        const order = [...eliminationOrderRef.current, id];
+        eliminationOrderRef.current = order;
+        setEliminationOrder(order);
+      } else {
+        if (playerEliminatedRef.current[who.name]) return;
+        const next = { ...playerEliminatedRef.current, [who.name]: true };
+        playerEliminatedRef.current = next;
+        setPlayerEliminated(next);
+        const order = [...eliminationOrderRef.current, who.name];
+        eliminationOrderRef.current = order;
+        setEliminationOrder(order);
       }
-      if (next == null) {
-        finishMatch(scoresRef.current);
-        return;
-      }
-      setTurn(next);
-      angleRef.current = 0;
-      setAngle(0);
-      physicsRef.current?.reset(0);
-      setScene("entering");
-      window.setTimeout(() => setScene("wheel"), 650);
     },
-    [finishMatch, teamCount],
+    [teamsOn],
   );
 
-  useEffect(() => {
-    if (scene === "question") {
-      emptyHandled.current = false;
-      fuseHandled.current = false;
-      fuseArmed.current = false;
-      setAnswerOpen(false);
-      const cfg = loadFuseConfig();
-      setFuse(cfg);
-      setFuseLeft(cfg.enabled ? cfg.seconds : null);
-    }
-  }, [scene, picked]);
+  const openShowRef = useRef<((kind: ShowKind, pts: number) => void) | null>(null);
 
   useEffect(() => {
-    if (scene !== "question" || !fuse.enabled || panelOpen || answerOpen) return;
+    if (scene !== "question") return;
+    fuseHandled.current = false;
+    fuseArmed.current = false;
+    setAnswerOpen(false);
+    if (timeBankMatch && picked) {
+      const bank = teamsOn
+        ? (banksRef.current[picked.team] ?? 0)
+        : (playerBanksRef.current[picked.name] ?? 0);
+      const inBuf = teamsOn
+        ? Boolean(teamInBufferRef.current[picked.team])
+        : Boolean(playerInBufferRef.current[picked.name]);
+      const secs = roundClockSeconds(bank, settings.bufferSeconds, inBuf);
+      roundClockStartRef.current = secs;
+      setRoundClockStart(secs);
+      setFuse({ enabled: true, seconds: Math.max(1, Math.round(secs) || 1) });
+      setFuseLeft(secs);
+      if (secs <= 0 && picked) {
+        // No time left on the round clock — treat as timeout elimination.
+        window.setTimeout(() => {
+          if (fuseHandled.current) return;
+          fuseHandled.current = true;
+          eliminateContestant(picked);
+          void playTimeout();
+          openShowRef.current?.("timeout", 0);
+        }, 0);
+      }
+      return;
+    }
+    const cfg = loadFuseConfig();
+    setFuse(cfg);
+    setFuseLeft(cfg.enabled ? cfg.seconds : null);
+    roundClockStartRef.current = 0;
+    setRoundClockStart(0);
+  }, [scene, picked, timeBankMatch, teamsOn, settings.bufferSeconds, eliminateContestant]);
+
+  useEffect(() => {
+    if (scene !== "question") return;
+    const fuseOn = timeBankMatch || fuse.enabled;
+    if (!fuseOn || panelOpen) return;
+    if (!timeBankMatch && answerOpen) return;
     const id = window.setInterval(() => {
       setFuseLeft((prev) => {
         if (prev == null) return prev;
@@ -487,10 +651,13 @@ function WheelPage() {
       });
     }, 50);
     return () => window.clearInterval(id);
-  }, [scene, fuse.enabled, panelOpen, answerOpen, picked]);
+  }, [scene, fuse.enabled, panelOpen, answerOpen, picked, timeBankMatch]);
 
   useEffect(() => {
-    if (scene !== "question" || !fuse.enabled || answerOpen) return;
+    if (scene !== "question") return;
+    const fuseOn = timeBankMatch || fuse.enabled;
+    if (!fuseOn) return;
+    if (!timeBankMatch && answerOpen) return;
     if (fuseLeft == null) return;
     if (fuseLeft > 0) {
       fuseArmed.current = true;
@@ -499,40 +666,19 @@ function WheelPage() {
     if (!fuseArmed.current || fuseHandled.current) return;
     fuseHandled.current = true;
     void playTimeout();
-    openShow("timeout", 0);
-  }, [fuseLeft, scene, fuse.enabled, answerOpen]);
-
-  useEffect(() => {
-    if (!timeMatch || scene !== "question" || panelOpen) return;
-    const id = window.setInterval(() => {
-      const team = turnRef.current;
-      setBanks((prev) => {
-        const current = prev[team] ?? 0;
-        if (current <= 0) return prev;
-        const remaining = Math.max(0, current - 0.25);
-        const next = [...prev];
-        next[team] = remaining;
-        return next;
-      });
-    }, 250);
-    return () => window.clearInterval(id);
-  }, [timeMatch, scene, panelOpen]);
-
-  useEffect(() => {
-    if (!timeMatch || scene !== "question") return;
-    if ((banks[turn] ?? 0) > 0) return;
-    if (emptyHandled.current) return;
-    emptyHandled.current = true;
-    onBankEmpty(turn);
-  }, [banks, turn, timeMatch, scene, onBankEmpty]);
+    if (timeBankMatch && picked) {
+      eliminateContestant(picked);
+    }
+    openShowRef.current?.("timeout", 0);
+  }, [fuseLeft, scene, fuse.enabled, answerOpen, timeBankMatch, picked, eliminateContestant]);
 
   const lastUrgent = useRef(11);
   useEffect(() => {
-    if (!timeMatch || scene !== "question" || panelOpen) {
+    if (!timeBankMatch || scene !== "question" || panelOpen) {
       lastUrgent.current = 11;
       return;
     }
-    const remaining = banks[turn] ?? 0;
+    const remaining = fuseLeft ?? 0;
     const sec = Math.ceil(remaining);
     if (remaining > 10 || remaining <= 0) {
       lastUrgent.current = 11;
@@ -542,7 +688,7 @@ function WheelPage() {
       lastUrgent.current = sec;
       void playUrgentTick();
     }
-  }, [banks, timeMatch, scene, turn, panelOpen]);
+  }, [fuseLeft, timeBankMatch, scene, panelOpen]);
 
   useEffect(() => {
     const sim = new WheelPhysics(Math.max(1, slices.length), {
@@ -694,6 +840,13 @@ function WheelPage() {
     setTeamSpins([0, 0, 0]);
     setPlayerSpins({});
     setBanks([90, 90, 90]);
+    setTeamEliminated([false, false, false]);
+    setTeamInBuffer([false, false, false]);
+    setPlayerBanks({});
+    setPlayerEliminated({});
+    setPlayerInBuffer({});
+    setEliminationOrder([]);
+    setRoundClockStart(0);
     setWinner(null);
     setSoloPodium(null);
     setMatchEnding(false);
@@ -764,6 +917,22 @@ function WheelPage() {
     setTeamSpins([0, 0, 0]);
     setPlayerSpins({});
     setBanks(Array.from({ length: 3 }, () => next.secondsPerTeam));
+    banksRef.current = Array.from({ length: 3 }, () => next.secondsPerTeam);
+    setTeamEliminated([false, false, false]);
+    setTeamInBuffer([false, false, false]);
+    const soloBank: Record<string, number> = {};
+    for (const p of players) soloBank[p.name] = next.secondsPerTeam;
+    setPlayerBanks(soloBank);
+    playerBanksRef.current = soloBank;
+    setPlayerEliminated({});
+    playerEliminatedRef.current = {};
+    setPlayerInBuffer({});
+    playerInBufferRef.current = {};
+    setEliminationOrder([]);
+    eliminationOrderRef.current = [];
+    setRoundClockStart(0);
+    teamEliminatedRef.current = [false, false, false];
+    teamInBufferRef.current = [false, false, false];
     setWinner(null);
     setSoloPodium(null);
     setMatchEnding(false);
@@ -785,8 +954,8 @@ function WheelPage() {
 
   function teamForTurn(team: TeamId): Player[] {
     const mine = players.filter((p) => p.team === team);
-    if (!timeMatch) return mine;
-    return mine.filter((p) => (banks[p.team] ?? 0) > 0);
+    if (!timeBankMatch) return mine;
+    return mine.filter((p) => !teamEliminatedRef.current[p.team]);
   }
 
   function passTurn(from: TeamId, spins = teamSpinsRef.current): TeamId | null {
@@ -794,6 +963,7 @@ function WheelPage() {
     const sliceSpins = spins.slice(0, n);
     const sliceScores = scoresRef.current.slice(0, n);
     if (
+      !timeBankMatch &&
       settings.winMode === "score" &&
       reachedScoreToWin(sliceScores, settings.scoreToWin)
     ) {
@@ -802,13 +972,16 @@ function WheelPage() {
     }
     for (let step = 1; step <= n; step++) {
       const next = (from + step) % n;
-      if (!timeMatch || (banks[next] ?? 0) > 0) return next as TeamId;
+      if (!timeBankMatch || !teamEliminatedRef.current[next]) return next as TeamId;
     }
     return null;
   }
 
   function eligiblePlayers(): Player[] {
-    if (!teamsOn) return players;
+    if (!teamsOn) {
+      if (!timeBankMatch) return players;
+      return players.filter((p) => !playerEliminatedRef.current[p.name]);
+    }
     const mine = teamForTurn(turn);
     if (mine.length) return mine;
     for (let t = 0; t < teamCount; t++) {
@@ -865,6 +1038,42 @@ function WheelPage() {
 
   function skipLanded() {
     if (scene !== "landed" || !picked || deskOpen) return;
+    if (timeBankMatch) {
+      const penalty = settings.skipPenaltySeconds;
+      if (teamsOn) {
+        const team = picked.team;
+        const result = applySkipPenalty(
+          banksRef.current[team] ?? 0,
+          penalty,
+          settings.bufferSeconds,
+          Boolean(teamInBufferRef.current[team]),
+        );
+        const nextBanks = [...banksRef.current];
+        nextBanks[team] = result.bank;
+        banksRef.current = nextBanks;
+        setBanks(nextBanks);
+        const nextBuf = [...teamInBufferRef.current];
+        nextBuf[team] = result.inBufferZone;
+        teamInBufferRef.current = nextBuf;
+        setTeamInBuffer(nextBuf);
+      } else {
+        const result = applySkipPenalty(
+          playerBanksRef.current[picked.name] ?? 0,
+          penalty,
+          settings.bufferSeconds,
+          Boolean(playerInBufferRef.current[picked.name]),
+        );
+        const nextBanks = { ...playerBanksRef.current, [picked.name]: result.bank };
+        playerBanksRef.current = nextBanks;
+        setPlayerBanks(nextBanks);
+        const nextBuf = {
+          ...playerInBufferRef.current,
+          [picked.name]: result.inBufferZone,
+        };
+        playerInBufferRef.current = nextBuf;
+        setPlayerInBuffer(nextBuf);
+      }
+    }
     setPicked(null);
     setPrompt(null);
     setRevealStep(0);
@@ -909,6 +1118,39 @@ function WheelPage() {
         playerSpinsRef.current = nextPlayerSpins;
         setPlayerSpins(nextPlayerSpins);
       }
+    }
+
+    if (timeBankMatch) {
+      if (teamsOn) {
+        const elim = teamEliminatedRef.current.slice(0, teamCount);
+        if (shouldEndTimeBankMatch(countAlive(elim))) {
+          finishTimeBankTeamMatch();
+          return;
+        }
+        const nextTurn = passTurn(turnRef.current, nextTeamSpins);
+        if (nextTurn == null) {
+          finishTimeBankTeamMatch();
+          return;
+        }
+        setTurn(nextTurn);
+        angleRef.current = 0;
+        setAngle(0);
+        physicsRef.current?.reset(0);
+      } else {
+        const names = players.map((p) => p.name);
+        const flags = names.map((n) => Boolean(playerEliminatedRef.current[n]));
+        if (shouldEndTimeBankMatch(countAlive(flags))) {
+          finishTimeBankSoloMatch(names);
+          return;
+        }
+      }
+      setPrompt(null);
+      setRevealStep(0);
+      setPicked(null);
+      setShowKind(null);
+      setShowPts(0);
+      setScene("wheel");
+      return;
     }
 
     if (settings.winMode === "score") {
@@ -1006,6 +1248,15 @@ function WheelPage() {
   }
 
   function willFinishAfterThisTurn(): boolean {
+    if (timeBankMatch) {
+      if (teamsOn) {
+        return shouldEndTimeBankMatch(
+          countAlive(teamEliminatedRef.current.slice(0, teamCount)),
+        );
+      }
+      const flags = players.map((p) => Boolean(playerEliminatedRef.current[p.name]));
+      return shouldEndTimeBankMatch(countAlive(flags));
+    }
     if (settings.winMode !== "score" || !picked) return false;
     if (teamsOn) {
       const nextSpins = [...teamSpinsRef.current];
@@ -1047,9 +1298,57 @@ function WheelPage() {
       }, 2000);
     }
   }
+  openShowRef.current = openShow;
+
+  function applyTimeBankEscape() {
+    if (!picked) return;
+    const elapsed = elapsedFromRoundClock(
+      roundClockStartRef.current,
+      fuseLeftRef.current ?? 0,
+    );
+    if (teamsOn) {
+      const team = picked.team;
+      const result = applyCorrectEscape(
+        banksRef.current[team] ?? 0,
+        elapsed,
+        settings.bufferSeconds,
+        Boolean(teamInBufferRef.current[team]),
+      );
+      const nextBanks = [...banksRef.current];
+      nextBanks[team] = result.bank;
+      banksRef.current = nextBanks;
+      setBanks(nextBanks);
+      const nextBuf = [...teamInBufferRef.current];
+      nextBuf[team] = result.inBufferZone;
+      teamInBufferRef.current = nextBuf;
+      setTeamInBuffer(nextBuf);
+    } else {
+      const result = applyCorrectEscape(
+        playerBanksRef.current[picked.name] ?? 0,
+        elapsed,
+        settings.bufferSeconds,
+        Boolean(playerInBufferRef.current[picked.name]),
+      );
+      const nextBanks = { ...playerBanksRef.current, [picked.name]: result.bank };
+      playerBanksRef.current = nextBanks;
+      setPlayerBanks(nextBanks);
+      const nextBuf = {
+        ...playerInBufferRef.current,
+        [picked.name]: result.inBufferZone,
+      };
+      playerInBufferRef.current = nextBuf;
+      setPlayerInBuffer(nextBuf);
+    }
+  }
 
   function markCorrect() {
     if (!canMarkAnswer(scene, answerOpen) || !picked) return;
+    if (timeBankMatch) {
+      applyTimeBankEscape();
+      void playCorrect();
+      openShow("got", 0);
+      return;
+    }
     const pts = answerPoints();
     awardPoints(pts);
     void playCorrect();
@@ -1058,6 +1357,9 @@ function WheelPage() {
 
   function markMiss() {
     if (!canMarkAnswer(scene, answerOpen)) return;
+    if (timeBankMatch && picked) {
+      eliminateContestant(picked);
+    }
     void playMiss();
     openShow("miss", 0);
   }
@@ -1142,6 +1444,17 @@ function WheelPage() {
     setPanelOpen(true);
   }
 
+  const boardScores = timeBankMatch
+    ? banks.map((b, i) => (teamEliminated[i] ? 0 : Math.round(b)))
+    : scores;
+  const boardPlayerScores = timeBankMatch
+    ? Object.fromEntries(
+        players.map((p) => [
+          p.name,
+          playerEliminated[p.name] ? 0 : Math.round(playerBanks[p.name] ?? 0),
+        ]),
+      )
+    : playerScores;
   const showScoreRail = started && scene !== "toss" && !deskOpen;
   const teamCorners = teamsOn && teamCount === 2;
 
@@ -1152,8 +1465,8 @@ function WheelPage() {
           <PlayLeaderboard
             teamsOn={teamsOn}
             teamCount={teamCount}
-            scores={scores}
-            playerScores={playerScores}
+            scores={boardScores}
+            playerScores={boardPlayerScores}
             players={players}
             palettes={palettes}
             playerScoredAt={playerScoredAt}
@@ -1162,6 +1475,7 @@ function WheelPage() {
             plusFly={scoreFly?.target ?? null}
             plusValue={scoreFly?.value ?? 0}
             activePlayer={scoreFly?.player ?? activeName}
+            unit={timeBankMatch ? "s" : "pts"}
           />
         ) : (
           <aside
@@ -1173,8 +1487,8 @@ function WheelPage() {
             <PlayLeaderboard
               teamsOn={teamsOn}
               teamCount={teamCount}
-              scores={scores}
-              playerScores={playerScores}
+              scores={boardScores}
+              playerScores={boardPlayerScores}
               players={players}
               palettes={palettes}
               playerScoredAt={playerScoredAt}
@@ -1183,6 +1497,7 @@ function WheelPage() {
               plusFly={scoreFly?.target ?? null}
               plusValue={scoreFly?.value ?? 0}
               activePlayer={scoreFly?.player ?? activeName}
+              unit={timeBankMatch ? "s" : "pts"}
             />
           </aside>
         )
@@ -1270,9 +1585,9 @@ function WheelPage() {
                 revealStep={revealStep}
                 answerOpen={answerOpen}
                 hintAvailable={hintAvailable}
-                fuseEnabled={fuse.enabled}
+                fuseEnabled={timeBankMatch || fuse.enabled}
                 fuseSeconds={fuse.seconds}
-                fusePaused={panelOpen || answerOpen}
+                fusePaused={panelOpen || (!timeBankMatch && answerOpen)}
                 fuseKey={prompt?.word.id ?? picked?.name ?? "fuse"}
                 onUnlock={unlockAnswer}
                 onHint={revealHint}
@@ -1403,12 +1718,13 @@ function WheelPage() {
         <WinOverlay
           winner={winner}
           soloPodium={soloPodium}
-          scores={scores}
+          scores={timeBankMatch ? boardScores : scores}
           players={players}
           palettes={palettes}
           teamCount={teamCount}
           onAgain={playAgain}
           away={deskOpen}
+          timeBank={timeBankMatch}
         />
       ) : null}
     </div>
@@ -1630,6 +1946,7 @@ function WinOverlay({
   teamCount = 2,
   onAgain,
   away = false,
+  timeBank = false,
 }: {
   winner: TeamId | "draw" | null;
   soloPodium: RankedEntry[] | null;
@@ -1639,6 +1956,7 @@ function WinOverlay({
   teamCount?: number;
   onAgain: () => void;
   away?: boolean | undefined;
+  timeBank?: boolean;
 }) {
   const solo = Boolean(soloPodium?.length);
   const firstSolo = soloPodium?.[0];
@@ -1733,7 +2051,9 @@ function WinOverlay({
                   <span className="vocablab-win-name" style={{ color: paint.fill }}>
                     {row.id}
                   </span>
-                  <span className="vocablab-win-pts tabular-nums">{row.score} pts</span>
+                  <span className="vocablab-win-pts tabular-nums">
+                    {row.score} {timeBank ? "s" : "pts"}
+                  </span>
                 </li>
               );
             })}

@@ -21,6 +21,8 @@ const settings: WheelSettings = {
   pointsRevealed: 1,
   pointsSkip: 0,
   secondsPerTeam: 90,
+  bufferSeconds: 10,
+  skipPenaltySeconds: 0,
   askDirection: "random",
 };
 

@@ -45,6 +45,8 @@ export type WheelLesson = {
   pointsRevealed: number;
   pointsSkip: number;
   secondsPerTeam: number;
+  bufferSeconds: number;
+  skipPenaltySeconds: number;
 };
 
 function newId() {
@@ -130,6 +132,9 @@ export function lessonToSettings(lesson: WheelLesson): WheelSettings {
     pointsRevealed: lesson.pointsRevealed,
     pointsSkip: lesson.pointsSkip,
     secondsPerTeam: lesson.secondsPerTeam,
+    bufferSeconds: lesson.bufferSeconds ?? DEFAULT_WHEEL_SETTINGS.bufferSeconds,
+    skipPenaltySeconds:
+      lesson.skipPenaltySeconds ?? DEFAULT_WHEEL_SETTINGS.skipPenaltySeconds,
     askDirection: lesson.askDirection,
   };
 }
@@ -224,6 +229,8 @@ export function blankLessonDraft(
     pointsRevealed: defaults.pointsRevealed,
     pointsSkip: defaults.pointsSkip,
     secondsPerTeam: defaults.secondsPerTeam,
+    bufferSeconds: defaults.bufferSeconds,
+    skipPenaltySeconds: defaults.skipPenaltySeconds,
   };
 }
 
@@ -279,7 +286,19 @@ export function upsertWheelLesson(
     secondsPerTeam: clamp(
       Number(input.secondsPerTeam) || DEFAULT_WHEEL_SETTINGS.secondsPerTeam,
       15,
-      300,
+      600,
+    ),
+    bufferSeconds: clamp(
+      Number(input.bufferSeconds) || DEFAULT_WHEEL_SETTINGS.bufferSeconds,
+      1,
+      120,
+    ),
+    skipPenaltySeconds: clamp(
+      typeof input.skipPenaltySeconds === "number"
+        ? input.skipPenaltySeconds
+        : DEFAULT_WHEEL_SETTINGS.skipPenaltySeconds,
+      0,
+      120,
     ),
   };
   writeList([saved, ...list.filter((s) => s.id !== saved.id)].slice(0, MAX_SAVED));
@@ -335,7 +354,19 @@ function normaliseLesson(raw: unknown): WheelLesson | null {
     secondsPerTeam: clamp(
       Number(s.secondsPerTeam) || DEFAULT_WHEEL_SETTINGS.secondsPerTeam,
       15,
-      300,
+      600,
+    ),
+    bufferSeconds: clamp(
+      Number(s.bufferSeconds) || DEFAULT_WHEEL_SETTINGS.bufferSeconds,
+      1,
+      120,
+    ),
+    skipPenaltySeconds: clamp(
+      typeof s.skipPenaltySeconds === "number"
+        ? s.skipPenaltySeconds
+        : DEFAULT_WHEEL_SETTINGS.skipPenaltySeconds,
+      0,
+      120,
     ),
   };
 }

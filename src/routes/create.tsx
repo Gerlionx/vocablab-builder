@@ -1,12 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  ActivityPosterCard,
-  wheelOfNamesModeChips,
-} from "@/components/ActivityPosterCard";
+import { ActivityPosterCard } from "@/components/ActivityPosterCard";
 import { AppChrome } from "@/components/AppChrome";
-import { DEFAULT_WHEEL_SETTINGS, loadWheelSettings } from "@/lib/game-settings";
-import { DEFAULT_WHEEL_GAME_MODE, type WheelGameModeId } from "@/lib/wheel-modes";
+import {
+  activateBoardMode,
+  DEFAULT_BOARD_MODES,
+  loadBoardModes,
+  type BoardModesState,
+} from "@/lib/game-settings";
+import {
+  DEFAULT_WHEEL_GAME_MODE,
+  WHEEL_GAME_MODES,
+  wheelGameModeDef,
+  type WheelGameModeId,
+} from "@/lib/wheel-modes";
 
 export const Route = createFileRoute("/create")({
   head: () => ({
@@ -28,12 +35,23 @@ export const Route = createFileRoute("/create")({
   component: CreatePage,
 });
 
+const MODE_TEASERS: Record<WheelGameModeId, string> = {
+  basic: "Names spin. Someone lands. The room leans in.",
+  time: "Each side starts with a time bank. Escape on Got it — miss or timeout and you’re out.",
+};
+
 function CreatePage() {
-  const [activeMode, setActiveMode] = useState<WheelGameModeId>(DEFAULT_WHEEL_GAME_MODE);
+  const [board, setBoard] = useState<BoardModesState>(DEFAULT_BOARD_MODES);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    setActiveMode(loadWheelSettings().gameMode ?? DEFAULT_WHEEL_SETTINGS.gameMode);
+    setBoard(loadBoardModes());
+    setReady(true);
   }, []);
+
+  const enabledModes = ready
+    ? WHEEL_GAME_MODES.filter((mode) => board.enabled.includes(mode.id))
+    : [wheelGameModeDef(DEFAULT_WHEEL_GAME_MODE)];
 
   return (
     <AppChrome>
@@ -46,23 +64,51 @@ function CreatePage() {
         </Link>
         <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">Activity</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Choose an activity for the board. Prep lessons under Create first.
+          Choose a mode for the board. Activate modes under Create first.
         </p>
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:max-w-4xl">
-          <ActivityPosterCard
-            to="/wheel"
-            title="Wheel of Names"
-            teaser="Names spin. Someone lands. The room leans in."
-            modes={wheelOfNamesModeChips(activeMode)}
-          />
-          <ActivityPosterCard
-            title="Wheel of Time"
-            teaser="Coming soon — time-bank play, same spin energy."
-            modes={[{ id: "time-bank", label: "Time bank", active: false }]}
-            disabled
-          />
+          {enabledModes.map((mode) => {
+            const playable = mode.playable;
+            return (
+              <ActivityPosterCard
+                key={mode.id}
+                {...(playable
+                  ? { to: "/wheel" as const, search: { mode: mode.id } }
+                  : {})}
+                disabled={!playable}
+                title="Wheel of Names"
+                teaser={
+                  playable
+                    ? MODE_TEASERS[mode.id]
+                    : "Coming soon — activate it now so it is ready when play ships."
+                }
+                modes={[
+                  {
+                    id: mode.id,
+                    label: mode.label,
+                    active: true,
+                  },
+                ]}
+                onOpen={() => {
+                  try {
+                    sessionStorage.setItem("vocablab.wheel.playMode", mode.id);
+                  } catch {
+                    /* ignore */
+                  }
+                  const next = activateBoardMode(mode.id);
+                  setBoard(next);
+                }}
+              />
+            );
+          })}
         </div>
+
+        {ready && enabledModes.length === 0 ? (
+          <p className="mt-8 text-sm text-muted-foreground">
+            No modes are on yet. Open Create → Wheel of Names and activate a game mode.
+          </p>
+        ) : null}
       </main>
     </AppChrome>
   );

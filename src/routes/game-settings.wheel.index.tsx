@@ -6,13 +6,22 @@ import { ImagePicker } from "@/components/ImagePicker";
 import { LangFlag } from "@/components/LangFlag";
 import { WordThumb } from "@/components/WordThumb";
 import {
+  activateBoardMode,
+  applyModeSettingsToDraft,
+  deactivateBoardMode,
   DEFAULT_FUSE,
+  DEFAULT_MODE_SETTINGS,
   DEFAULT_WHEEL_SETTINGS,
+  loadBoardModes,
   loadFuseConfig,
+  loadModeSettings,
   loadWheelSettings,
   saveFuseConfig,
+  saveModeSettings,
   type AskDirection,
+  type BoardModesState,
   type FuseConfig,
+  type WheelModeSettingsStore,
 } from "@/lib/game-settings";
 import { stashLessonHandout } from "@/lib/lesson-handout";
 import {
@@ -61,6 +70,12 @@ function WheelLessonsPage() {
   const [draft, setDraft] = useState<Draft>(() => blankLessonDraft(DEFAULT_WHEEL_SETTINGS));
   const [note, setNote] = useState<string | null>(null);
   const [fuse, setFuse] = useState<FuseConfig>(DEFAULT_FUSE);
+  const [board, setBoard] = useState<BoardModesState>({
+    enabled: [DEFAULT_WHEEL_SETTINGS.gameMode],
+    active: DEFAULT_WHEEL_SETTINGS.gameMode,
+  });
+  const [modeSettings, setModeSettings] =
+    useState<WheelModeSettingsStore>(DEFAULT_MODE_SETTINGS);
   const [patches, setPatches] = useState<Record<string, WordPatch>>({});
   const [editWord, setEditWord] = useState<Word | null>(null);
   const [pendingDelete, setPendingDelete] = useState<WheelLesson | null>(null);
@@ -70,10 +85,20 @@ function WheelLessonsPage() {
 
   useEffect(() => {
     defaultsRef.current = loadWheelSettings();
+    const modes = loadModeSettings();
+    const boardState = loadBoardModes();
     setLessons(listWheelLessons());
     setFuse(loadFuseConfig());
+    setModeSettings(modes);
+    setBoard(boardState);
     setPatches(loadWordPatches());
-    setDraft(blankLessonDraft(defaultsRef.current));
+    setDraft(
+      applyModeSettingsToDraft(
+        blankLessonDraft(defaultsRef.current),
+        boardState.active,
+        modes,
+      ),
+    );
     setReady(true);
   }, []);
 
@@ -158,8 +183,65 @@ function WheelLessonsPage() {
     setLessons(listWheelLessons());
   }
 
+  function selectMode(modeId: WheelGameModeId) {
+    const nextBoard = activateBoardMode(modeId);
+    setBoard(nextBoard);
+    setDraft((d) => applyModeSettingsToDraft(d, modeId, modeSettings));
+  }
+
+  function toggleMode(modeId: WheelGameModeId, turnOn: boolean) {
+    if (turnOn) {
+      selectMode(modeId);
+      return;
+    }
+    const nextBoard = deactivateBoardMode(modeId);
+    setBoard(nextBoard);
+    if (draft.gameMode === modeId) {
+      setDraft((d) => applyModeSettingsToDraft(d, nextBoard.active, modeSettings));
+    }
+  }
+
+  function patchBasicSettings(patch: Partial<WheelModeSettingsStore["basic"]>) {
+    const basic = { ...modeSettings.basic, ...patch };
+    const next = { ...modeSettings, basic };
+    setModeSettings(next);
+    saveModeSettings(next);
+    setDraft((d) =>
+      d.gameMode === "basic"
+        ? {
+            ...d,
+            askDirection: basic.askDirection,
+            scoreToWin: basic.scoreToWin,
+            pointsCorrect: basic.pointsCorrect,
+            pointsRevealed: basic.pointsRevealed,
+            pointsSkip: basic.pointsSkip,
+          }
+        : d,
+    );
+  }
+
+  function patchTimeSettings(patch: Partial<WheelModeSettingsStore["time"]>) {
+    const time = { ...modeSettings.time, ...patch };
+    const next = { ...modeSettings, time };
+    setModeSettings(next);
+    saveModeSettings(next);
+    setDraft((d) =>
+      d.gameMode === "time"
+        ? {
+            ...d,
+            askDirection: time.askDirection,
+            secondsPerTeam: time.secondsPerTeam,
+            bufferSeconds: time.bufferSeconds,
+            skipPenaltySeconds: time.skipPenaltySeconds,
+          }
+        : d,
+    );
+  }
+
   function loadLesson(lesson: WheelLesson) {
     titleTouched.current = true;
+    const nextBoard = activateBoardMode(lesson.gameMode);
+    setBoard(nextBoard);
     setDraft({
       id: lesson.id,
       title: lesson.title,
@@ -176,12 +258,20 @@ function WheelLessonsPage() {
       pointsRevealed: lesson.pointsRevealed,
       pointsSkip: lesson.pointsSkip,
       secondsPerTeam: lesson.secondsPerTeam,
+      bufferSeconds: lesson.bufferSeconds ?? 10,
+      skipPenaltySeconds: lesson.skipPenaltySeconds ?? 0,
     });
   }
 
   function newLesson() {
     titleTouched.current = false;
-    setDraft(blankLessonDraft(defaultsRef.current));
+    setDraft(
+      applyModeSettingsToDraft(
+        blankLessonDraft(defaultsRef.current),
+        board.active,
+        modeSettings,
+      ),
+    );
   }
 
   function clearFilters() {
@@ -434,30 +524,32 @@ function WheelLessonsPage() {
               Game mode
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Turn on the mode this lesson uses. More modes will appear here later.
+              Activate or deactivate each mode for the Activity board. Turn one on to set its
+              options — each mode keeps its own settings.
             </p>
             <div className="mt-3 space-y-2">
-              {WHEEL_GAME_MODES.map((mode) => (
-                <ModeToggleRow
-                  key={mode.id}
-                  title={mode.label}
-                  hint={mode.blurb}
-                  on={draft.gameMode === mode.id}
-                  onToggle={(active) => {
-                    if (!active && WHEEL_GAME_MODES.length === 1) return;
-                    if (active) {
-                      setDraft((d) => ({
-                        ...d,
-                        gameMode: mode.id satisfies WheelGameModeId,
-                      }));
-                    }
-                  }}
-                />
-              ))}
+              {WHEEL_GAME_MODES.map((mode) => {
+                const enabled = board.enabled.includes(mode.id);
+                const selected = draft.gameMode === mode.id;
+                return (
+                  <ModeToggleRow
+                    key={mode.id}
+                    title={mode.label}
+                    hint={mode.blurb}
+                    on={enabled}
+                    selected={selected}
+                    onSelect={() => {
+                      if (enabled) selectMode(mode.id);
+                      else toggleMode(mode.id, true);
+                    }}
+                    onToggle={(active) => toggleMode(mode.id, active)}
+                  />
+                );
+              })}
             </div>
           </div>
 
-          {draft.gameMode === "basic" ? (
+          {draft.gameMode === "basic" && board.enabled.includes("basic") ? (
             <div className="mt-8 rounded-2xl bg-muted/40 p-4 ring-1 ring-border">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Standard options
@@ -479,7 +571,7 @@ function WheelLessonsPage() {
                     key={id}
                     type="button"
                     onClick={() =>
-                      setDraft((d) => ({ ...d, askDirection: id satisfies AskDirection }))
+                      patchBasicSettings({ askDirection: id satisfies AskDirection })
                     }
                     className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-semibold transition ${
                       draft.askDirection === id
@@ -507,9 +599,7 @@ function WheelLessonsPage() {
                   min={5}
                   max={200}
                   value={draft.scoreToWin}
-                  onChange={(e) =>
-                    setDraft((d) => ({ ...d, scoreToWin: Number(e.target.value) }))
-                  }
+                  onChange={(e) => patchBasicSettings({ scoreToWin: Number(e.target.value) })}
                   className="mt-1.5 w-full rounded-xl bg-background px-4 py-2.5 ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </label>
@@ -522,7 +612,7 @@ function WheelLessonsPage() {
                   max={20}
                   value={draft.pointsCorrect}
                   onChange={(e) =>
-                    setDraft((d) => ({ ...d, pointsCorrect: Number(e.target.value) }))
+                    patchBasicSettings({ pointsCorrect: Number(e.target.value) })
                   }
                   className="mt-1.5 w-full rounded-xl bg-background px-4 py-2.5 ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
                 />
@@ -569,6 +659,130 @@ function WheelLessonsPage() {
                 </label>
                 <p className="mt-1.5 text-xs text-muted-foreground">
                   Applies to every Standard lesson. Off = no wire on the question.
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          {draft.gameMode === "time" && board.enabled.includes("time") ? (
+            <div className="mt-8 rounded-2xl bg-muted/40 p-4 ring-1 ring-border">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Time bank options
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Starting bank for each player or team. Round clock uses remaining bank — or the
+                buffer after an escape leaves less than the buffer. Missed or clock expiry
+                eliminates. Skip re-spins the same side; optional Skip penalty below.
+              </p>
+
+              <p className="mt-4 text-sm font-medium">Ask</p>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {(
+                  [
+                    ["french", "Fr → En", "fr", "en"],
+                    ["english", "En → Fr", "en", "fr"],
+                    ["random", "Mix", null, null],
+                  ] as const
+                ).map(([id, label, from, to]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() =>
+                      patchTimeSettings({ askDirection: id satisfies AskDirection })
+                    }
+                    className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-sm font-semibold transition ${
+                      draft.askDirection === id
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground ring-1 ring-border"
+                    }`}
+                  >
+                    {from && to ? (
+                      <>
+                        <LangFlag lang={from} />
+                        <span className="mx-0.5 opacity-80">→</span>
+                        <LangFlag lang={to} />
+                      </>
+                    ) : (
+                      label
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <label className="mt-4 block text-sm font-medium">
+                Starting time bank (seconds)
+                <input
+                  type="number"
+                  min={15}
+                  max={600}
+                  value={draft.secondsPerTeam}
+                  onChange={(e) =>
+                    patchTimeSettings({ secondsPerTeam: Number(e.target.value) })
+                  }
+                  className="mt-1.5 w-full rounded-xl bg-background px-4 py-2.5 ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+
+              <label className="mt-3 block text-sm font-medium">
+                Buffer (seconds)
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={draft.bufferSeconds}
+                  onChange={(e) =>
+                    patchTimeSettings({ bufferSeconds: Number(e.target.value) })
+                  }
+                  className="mt-1.5 w-full rounded-xl bg-background px-4 py-2.5 ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </label>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                After escaping with less than this left, the next round clock starts from the
+                buffer — not the leftover seconds.
+              </p>
+
+              <div className="mt-5 rounded-2xl bg-background/80 p-3 ring-1 ring-border">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium">Skip penalty</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={draft.skipPenaltySeconds > 0}
+                    onClick={() =>
+                      patchTimeSettings({
+                        skipPenaltySeconds: draft.skipPenaltySeconds > 0 ? 0 : 5,
+                      })
+                    }
+                    className={`relative h-8 w-14 shrink-0 rounded-full transition ${
+                      draft.skipPenaltySeconds > 0
+                        ? "bg-primary"
+                        : "bg-muted ring-1 ring-border"
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-1 size-6 rounded-full bg-white shadow transition ${
+                        draft.skipPenaltySeconds > 0 ? "left-7" : "left-1"
+                      }`}
+                    />
+                  </button>
+                </div>
+                <label className="mt-3 block text-sm font-medium">
+                  Seconds removed on Skip
+                  <input
+                    type="number"
+                    min={0}
+                    max={120}
+                    disabled={draft.skipPenaltySeconds <= 0}
+                    value={draft.skipPenaltySeconds}
+                    onChange={(e) =>
+                      patchTimeSettings({ skipPenaltySeconds: Number(e.target.value) })
+                    }
+                    className="mt-1.5 w-full rounded-xl bg-background px-4 py-2.5 ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-40"
+                  />
+                </label>
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  Off = free Skip (same player/team spins again). On = deduct this many seconds
+                  from their bank, then spin again for them.
                 </p>
               </div>
             </div>
@@ -726,28 +940,41 @@ function ModeToggleRow({
   title,
   hint,
   on,
+  selected,
   onToggle,
+  onSelect,
 }: {
   title: string;
   hint: string;
   on: boolean;
+  selected: boolean;
   onToggle: (active: boolean) => void;
+  onSelect: () => void;
 }) {
   return (
     <div
       className={`flex items-center gap-4 rounded-2xl px-4 py-3.5 ring-1 transition ${
-        on ? "bg-primary/8 ring-primary/35" : "bg-muted/50 ring-border"
+        on
+          ? selected
+            ? "bg-primary/8 ring-primary/35"
+            : "bg-primary/5 ring-primary/20"
+          : "bg-muted/50 ring-border"
       }`}
     >
-      <div className="min-w-0 flex-1">
+      <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
         <p className="font-kids text-base font-semibold tracking-tight">{title}</p>
         <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
-      </div>
+        {on && selected ? (
+          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+            Editing options
+          </p>
+        ) : null}
+      </button>
       <button
         type="button"
         role="switch"
         aria-checked={on}
-        aria-label={`${on ? "Disable" : "Enable"} ${title}`}
+        aria-label={`${on ? "Deactivate" : "Activate"} ${title}`}
         onClick={() => onToggle(!on)}
         className={`relative h-8 w-14 shrink-0 rounded-full transition ${
           on ? "bg-primary" : "bg-muted ring-1 ring-border"

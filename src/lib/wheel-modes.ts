@@ -1,16 +1,17 @@
 /**
- * Wheel game modes.
+ * Wheel of Names game modes.
  *
- * `basic` is the Standard classroom loop (kept as id for saved lessons):
- * spin → land on a name → ask a word → mark correct/miss.
- * Future modes branch from this registry — add a new id instead of folding into Standard.
+ * One game, several modes. `basic` (Standard) is the original classroom loop.
+ * `time` (Time bank) is Wheel of Time play — bank/buffer/eliminate on the board.
  */
-export type WheelGameModeId = "basic";
+export type WheelGameModeId = "basic" | "time";
 
 export type WheelGameModeDef = {
   id: WheelGameModeId;
   label: string;
   blurb: string;
+  /** When false, mode can appear on the board but play is not ready yet. */
+  playable: boolean;
 };
 
 export const WHEEL_GAME_MODES: readonly WheelGameModeDef[] = [
@@ -19,6 +20,14 @@ export const WHEEL_GAME_MODES: readonly WheelGameModeDef[] = [
     label: "Standard",
     blurb:
       "The original mode. Spin the wheel, ask the word, score the answer. Teams optional.",
+    playable: true,
+  },
+  {
+    id: "time",
+    label: "Time bank",
+    blurb:
+      "Each side starts with a time bank. Got it spends time from the bank; miss or timeout eliminates. Last one standing wins.",
+    playable: true,
   },
 ] as const;
 
@@ -30,8 +39,13 @@ export function wheelGameModeDef(id: WheelGameModeId | string | undefined): Whee
 }
 
 export function normaliseWheelGameMode(raw: unknown): WheelGameModeId {
+  if (raw === "time" || raw === "time-bank" || raw === "wheel-of-time") return "time";
   if (raw === "basic" || raw === "standard") return "basic";
   return DEFAULT_WHEEL_GAME_MODE;
+}
+
+export function isWheelGameModeId(raw: unknown): raw is WheelGameModeId {
+  return raw === "basic" || raw === "time";
 }
 
 export function describeWheelGameMode(
@@ -52,6 +66,9 @@ export function describeWheelGameMode(
         : "Mix";
   if (modeId === "basic") {
     return `${mode} · first to ${opts.scoreToWin} · ${ask}`;
+  }
+  if (modeId === "time") {
+    return `${mode} · ${opts.secondsPerTeam}s bank · ${ask}`;
   }
   return mode;
 }

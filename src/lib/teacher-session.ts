@@ -1,5 +1,6 @@
 import { DEMO_NAMES, USE_DEMO_NAMES } from "@/lib/vocab-data";
 import { splitTeams } from "@/lib/team-colors";
+import { isWheelGameModeId, type WheelGameModeId } from "@/lib/wheel-modes";
 
 /** Pupil names live only in the teacher login session (sessionStorage). Cleared on log out / idle. */
 export const TEACHER_IDLE_MS = 15 * 60 * 1000;
@@ -131,6 +132,8 @@ export function resetSessionNamesForDesk() {
 export type WheelMatchSession = {
   v: 1;
   started: boolean;
+  /** Which Activity mode this match was started as (basic | time). */
+  gameMode?: WheelGameModeId;
   matchTeamsOn: boolean;
   teamsOn: boolean;
   teamCount: 2 | 3;
@@ -142,6 +145,16 @@ export type WheelMatchSession = {
   teamSpins: number[];
   playerSpins: Record<string, number>;
   banks: number[];
+  /** Time bank: team eliminated flags (index = team id). */
+  teamEliminated: boolean[];
+  /** Time bank: team is on the buffer-round clock. */
+  teamInBuffer: boolean[];
+  /** Time bank: per-player remaining bank (solo). */
+  playerBanks: Record<string, number>;
+  playerEliminated: Record<string, boolean>;
+  playerInBuffer: Record<string, boolean>;
+  /** Contestant ids in elimination order (team index as string, or player name). */
+  eliminationOrder: string[];
   usedWordIds: string[];
   colorIds: string[];
   winner: number | "draw" | null;
@@ -184,6 +197,22 @@ function asNumList(value: unknown, len: number, fallback = 0): number[] {
   );
 }
 
+function asBoolList(value: unknown, len: number, fallback = false): boolean[] {
+  const src = Array.isArray(value) ? value : [];
+  return Array.from({ length: len }, (_, i) =>
+    typeof src[i] === "boolean" ? (src[i] as boolean) : fallback,
+  );
+}
+
+function asBoolMap(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object") return {};
+  const out: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "boolean") out[k] = v;
+  }
+  return out;
+}
+
 export function readWheelMatch(): WheelMatchSession | null {
   if (typeof window === "undefined") return null;
   try {
@@ -201,6 +230,7 @@ export function readWheelMatch(): WheelMatchSession | null {
     return {
       v: 1,
       started: parsed.started,
+      ...(isWheelGameModeId(parsed.gameMode) ? { gameMode: parsed.gameMode } : {}),
       matchTeamsOn: Boolean(parsed.matchTeamsOn),
       teamsOn: Boolean(parsed.teamsOn),
       teamCount,
@@ -212,6 +242,14 @@ export function readWheelMatch(): WheelMatchSession | null {
       teamSpins: asNumList(parsed.teamSpins, 3, 0),
       playerSpins: asScoreMap(parsed.playerSpins, true),
       banks: asNumList(parsed.banks, 3, 90),
+      teamEliminated: asBoolList(parsed.teamEliminated, 3, false),
+      teamInBuffer: asBoolList(parsed.teamInBuffer, 3, false),
+      playerBanks: asScoreMap(parsed.playerBanks, true),
+      playerEliminated: asBoolMap(parsed.playerEliminated),
+      playerInBuffer: asBoolMap(parsed.playerInBuffer),
+      eliminationOrder: Array.isArray(parsed.eliminationOrder)
+        ? parsed.eliminationOrder.map(String).filter(Boolean)
+        : [],
       usedWordIds: Array.isArray(parsed.usedWordIds)
         ? parsed.usedWordIds.map(String).filter(Boolean)
         : [],

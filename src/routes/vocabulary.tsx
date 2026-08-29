@@ -13,6 +13,15 @@ import {
   type Word,
 } from "@/lib/vocab-data";
 import { resolveImageSrc } from "@/lib/image-library";
+import {
+  applyVocabMerge,
+  downloadVocabBackup,
+  loadPersistedWordBank,
+  parseVocabBackupDoc,
+  planVocabMerge,
+  savePersistedWordBank,
+  type VocabMergePlan,
+} from "@/lib/vocab-backup";
 import { applyWordPatches, saveWordPatch } from "@/lib/word-patches";
 
 export const Route = createFileRoute("/vocabulary")({
@@ -49,7 +58,9 @@ type Draft = {
 };
 
 function VocabularyPage() {
-  const [words, setWords] = useState<Word[]>(() => applyWordPatches(SEED_WORDS));
+  const [words, setWords] = useState<Word[]>(
+    () => loadPersistedWordBank() ?? applyWordPatches(SEED_WORDS),
+  );
   const [years, setYears] = useState<string[]>(YEARS);
   const [terms, setTerms] = useState<string[]>(TERMS);
   const [topics, setTopics] = useState<string[]>(TOPICS);
@@ -63,11 +74,75 @@ function VocabularyPage() {
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState("");
   const [newName, setNewName] = useState("");
-  const [download, setDownload] = useState(false);
-  const [upload, setUpload] = useState<null | { year: string; exists: boolean }>(
-    null,
-  );
+  const [note, setNote] = useState<string | null>(null);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restore, setRestore] = useState<null | {
+    incoming: Word[];
+    plan: VocabMergePlan;
+  }>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function commitWords(next: Word[]) {
+    setWords(next);
+    savePersistedWordBank(next);
+    const nextYears = [...new Set(next.map((w) => w.year))];
+    const nextTerms = [...new Set(next.map((w) => w.term))];
+    const nextTopics = [...new Set(next.map((w) => w.topic))];
+    if (nextYears.length) {
+      setYears((prev) => {
+        const merged = [...prev];
+        for (const y of nextYears) if (!merged.includes(y)) merged.push(y);
+        return merged;
+      });
+      if (!nextYears.includes(year)) setYear(nextYears[0]!);
+    }
+    if (nextTerms.length) {
+      setTerms((prev) => {
+        const merged = [...prev];
+        for (const t of nextTerms) if (!merged.includes(t)) merged.push(t);
+        return merged;
+      });
+    }
+    if (nextTopics.length) {
+      setTopics((prev) => {
+        const merged = [...prev];
+        for (const t of nextTopics) if (!merged.includes(t)) merged.push(t);
+        return merged;
+      });
+    }
+  }
+
+  function updateWords(fn: (prev: Word[]) => Word[]) {
+    setWords((prev) => {
+      const next = fn(prev);
+      savePersistedWordBank(next);
+      return next;
+    });
+  }
+
+  function flash(msg: string) {
+    setNote(msg);
+    window.setTimeout(() => setNote(null), 2800);
+  }
+
+  async function onRestoreFile(file: File) {
+    setRestoreError(null);
+    try {
+      const text = await file.text();
+      const payload = parseVocabBackupDoc(text);
+      const plan = planVocabMerge(words, payload.words);
+      if (plan.duplicates.length === 0) {
+        commitWords(applyVocabMerge(words, payload.words, "add_missing"));
+        flash(
+          `Loaded ${payload.words.length} word${payload.words.length === 1 ? "" : "s"} from backup`,
+        );
+        return;
+      }
+      setRestore({ incoming: payload.words, plan });
+    } catch (err) {
+      setRestoreError(err instanceof Error ? err.message : "Could not read that file.");
+    }
+  }
 
   const yearWords = useMemo(
     () =>
@@ -118,7 +193,7 @@ function VocabularyPage() {
     if (kind === "year") {
       if (years.includes(trimmed)) return false;
       setYears((prev) => prev.map((name) => (name === from ? trimmed : name)));
-      setWords((prev) =>
+      updateWords((prev) =>
         prev.map((word) => (word.year === from ? { ...word, year: trimmed } : word)),
       );
       if (year === from) setYear(trimmed);
@@ -128,7 +203,7 @@ function VocabularyPage() {
     if (kind === "term") {
       if (terms.includes(trimmed)) return false;
       setTerms((prev) => prev.map((name) => (name === from ? trimmed : name)));
-      setWords((prev) =>
+      updateWords((prev) =>
         prev.map((word) => (word.term === from ? { ...word, term: trimmed } : word)),
       );
       if (selectedTerm === from) setSelectedTerm(trimmed);
@@ -137,7 +212,7 @@ function VocabularyPage() {
 
     if (topics.includes(trimmed)) return false;
     setTopics((prev) => prev.map((name) => (name === from ? trimmed : name)));
-    setWords((prev) =>
+    updateWords((prev) =>
       prev.map((word) => (word.topic === from ? { ...word, topic: trimmed } : word)),
     );
     return true;
@@ -147,7 +222,7 @@ function VocabularyPage() {
     const image = d.image?.trim() || undefined;
     const payload = { ...d, image };
     if (d.id) {
-      setWords((prev) =>
+      updateWords((prev) =>
         prev.map((w) =>
           w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w,
         ),
@@ -159,9 +234,10 @@ function VocabularyPage() {
         term: d.term,
         topic: d.topic,
         difficulty: d.difficulty,
+        image: image ?? "",
       });
     } else {
-      setWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
+      updateWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
       if (d.year !== year) setYear(d.year);
       if (d.term) setSelectedTerm(d.term);
     }
@@ -179,26 +255,40 @@ function VocabularyPage() {
         </Link>
 
         <header className="flex flex-wrap items-end justify-between gap-4">
-          <h1 className="text-4xl font-medium tracking-tight">Vocabulary</h1>
-          <div className="flex gap-2">
-            <GhostButton onClick={() => setDownload(true)}>
-              Download vocabulary
+          <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">
+            Vocabulary
+          </h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <GhostButton
+              onClick={() => {
+                downloadVocabBackup(words);
+                flash("Vocabulary backed up");
+              }}
+            >
+              Backup vocabulary
             </GhostButton>
             <GhostButton onClick={() => fileRef.current?.click()}>
-              Upload vocabulary
+              Restore / load vocabulary
             </GhostButton>
             <input
               ref={fileRef}
               type="file"
+              accept=".doc,.html,.htm,text/html,application/msword"
               className="hidden"
               onChange={(e) => {
+                const file = e.target.files?.[0];
                 e.target.value = "";
-                const exists = Math.random() > 0.5;
-                setUpload({ year: exists ? "Year 8" : "Year 10", exists });
+                if (file) void onRestoreFile(file);
               }}
             />
           </div>
         </header>
+        {note ? (
+          <p className="mt-3 text-sm font-semibold text-success">{note}</p>
+        ) : null}
+        {restoreError ? (
+          <p className="mt-3 text-sm font-semibold text-destructive">{restoreError}</p>
+        ) : null}
 
         {/* Filters */}
         <div className="sticky top-0 z-20 -mx-6 mt-8 bg-background/95 px-6 py-4 backdrop-blur-sm">
@@ -304,7 +394,7 @@ function VocabularyPage() {
                             item={item}
                             onEdit={() => setDraft({ ...item })}
                             onDelete={() =>
-                              setWords((prev) => prev.filter((x) => x.id !== item.id))
+                              updateWords((prev) => prev.filter((x) => x.id !== item.id))
                             }
                           />
                         ))}
@@ -514,18 +604,18 @@ function VocabularyPage() {
                       onClick={() => {
                         if (manage === "year") {
                           setYears((p) => p.filter((x) => x !== name));
-                          setWords((p) => p.filter((w) => w.year !== name));
+                          updateWords((p) => p.filter((w) => w.year !== name));
                           if (year === name) {
                             const left = years.filter((x) => x !== name);
                             setYear(left[0] ?? "");
                           }
                         } else if (manage === "term") {
                           setTerms((p) => p.filter((x) => x !== name));
-                          setWords((p) => p.filter((w) => w.term !== name));
+                          updateWords((p) => p.filter((w) => w.term !== name));
                           if (selectedTerm === name) setSelectedTerm(null);
                         } else {
                           setTopics((p) => p.filter((x) => x !== name));
-                          setWords((p) => p.filter((w) => w.topic !== name));
+                          updateWords((p) => p.filter((w) => w.topic !== name));
                         }
                         if (editingName === name) {
                           setEditingName(null);
@@ -575,67 +665,48 @@ function VocabularyPage() {
         </Modal>
       ) : null}
 
-      {/* Download */}
-      {download ? (
-        <Modal title="Download vocabulary" onClose={() => setDownload(false)}>
+      {restore ? (
+        <Modal title="Restore / load vocabulary" onClose={() => setRestore(null)}>
           <p className="text-sm text-muted-foreground">
-            Your vocabulary file for {year} has been prepared. In this preview no
-            file is actually saved.
+            This backup has {restore.incoming.length} word
+            {restore.incoming.length === 1 ? "" : "s"}.{" "}
+            <span className="font-semibold text-foreground">
+              {restore.plan.duplicates.length} duplicate
+              {restore.plan.duplicates.length === 1 ? "" : "s"}
+            </span>{" "}
+            already exist
+            {restore.plan.missing.length
+              ? `, and ${restore.plan.missing.length} new word${restore.plan.missing.length === 1 ? "" : "s"} can be added`
+              : ""}
+            .
           </p>
-          <div className="mt-8 flex justify-end">
+          <div className="mt-8 flex flex-wrap justify-end gap-2">
+            <GhostButton onClick={() => setRestore(null)}>Cancel</GhostButton>
+            <GhostButton
+              onClick={() => {
+                commitWords(applyVocabMerge(words, restore.incoming, "add_missing"));
+                setRestore(null);
+                flash(
+                  restore.plan.missing.length
+                    ? `Added ${restore.plan.missing.length} missing word${restore.plan.missing.length === 1 ? "" : "s"}`
+                    : "No new words to add",
+                );
+              }}
+            >
+              Add just the missing
+            </GhostButton>
             <button
               type="button"
-              onClick={() => setDownload(false)}
+              onClick={() => {
+                commitWords(applyVocabMerge(words, restore.incoming, "overwrite_all"));
+                setRestore(null);
+                flash("Vocabulary replaced from backup");
+              }}
               className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
             >
-              Done
+              Overwrite all
             </button>
           </div>
-        </Modal>
-      ) : null}
-
-      {/* Upload */}
-      {upload ? (
-        <Modal title="Upload vocabulary" onClose={() => setUpload(null)}>
-          {upload.exists ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {upload.year} already exists. What would you like to do with the
-                words in your file?
-              </p>
-              <div className="mt-8 flex justify-end gap-2">
-                <GhostButton onClick={() => setUpload(null)}>Keep mine</GhostButton>
-                <button
-                  type="button"
-                  onClick={() => setUpload(null)}
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
-                >
-                  Replace whole year
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                {upload.year} will be added to your vocabulary.
-              </p>
-              <div className="mt-8 flex justify-end gap-2">
-                <GhostButton onClick={() => setUpload(null)}>Cancel</GhostButton>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setYears((p) =>
-                      p.includes(upload.year) ? p : [...p, upload.year],
-                    );
-                    setUpload(null);
-                  }}
-                  className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
-                >
-                  Add {upload.year}
-                </button>
-              </div>
-            </>
-          )}
         </Modal>
       ) : null}
     </AppChrome>

@@ -19,6 +19,7 @@ export function PlayLeaderboard({
   plusFly,
   plusValue,
   activePlayer,
+  unit = "pts",
 }: {
   teamsOn: boolean;
   teamCount: number;
@@ -32,6 +33,8 @@ export function PlayLeaderboard({
   plusFly: number | null;
   plusValue: number;
   activePlayer: string | null;
+  /** Display unit after the number (`pts` score mode, `s` time bank). */
+  unit?: string;
 }) {
   if (teamsOn) {
     const teams = palettes
@@ -62,6 +65,7 @@ export function PlayLeaderboard({
                 burst={burst === 0}
                 plus={plusFly === 0 ? plusValue : null}
                 enterKey={`team-${left.color.id}`}
+                unit={unit}
               />
             </div>
           ) : null}
@@ -75,6 +79,7 @@ export function PlayLeaderboard({
                 burst={burst === 1}
                 plus={plusFly === 1 ? plusValue : null}
                 enterKey={`team-${right.color.id}`}
+                unit={unit}
               />
             </div>
           ) : null}
@@ -94,6 +99,7 @@ export function PlayLeaderboard({
             burst={burst === i}
             plus={plusFly === i ? plusValue : null}
             enterKey={`team-${color.id}`}
+            unit={unit}
           />
         ))}
       </ScoreStack>
@@ -126,6 +132,7 @@ export function PlayLeaderboard({
             burst={entry.name === activePlayer && burst === 0}
             plus={entry.name === activePlayer && plusFly === 0 ? plusValue : null}
             enterKey={entry.name}
+            unit={unit}
           />
         );
       })}
@@ -169,6 +176,7 @@ function ScoreRow({
   burst,
   plus,
   enterKey,
+  unit = "pts",
 }: {
   label: string;
   score: number;
@@ -177,9 +185,10 @@ function ScoreRow({
   burst: boolean;
   plus: number | null;
   enterKey: string;
+  unit?: string;
 }) {
   const entering = useEnterAnimation(enterKey);
-  const ptsLabel = `${score} pts`;
+  const ptsLabel = `${score} ${unit}`;
 
   return (
     <div
