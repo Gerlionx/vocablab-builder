@@ -1764,7 +1764,8 @@ function WheelPage() {
           type="button"
           onClick={openSetup}
           className="absolute right-3 z-[60] rounded-full bg-primary px-4 py-2.5 font-kids text-sm font-semibold text-primary-foreground shadow-lg sm:hidden"
-          style={{ bottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}
+          style={{ top: "max(0.75rem, env(safe-area-inset-top, 0px))" }}
+          aria-label="Open set up"
         >
           Set up
         </button>
