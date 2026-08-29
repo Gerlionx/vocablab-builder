@@ -1646,14 +1646,14 @@
   background:
     linear-gradient(
       180deg,
-      oklch(0.2 0.04 250 / 8%) 0%,
-      oklch(0.18 0.05 250 / 18%) 38%,
-      oklch(0.16 0.05 250 / 78%) 72%,
-      oklch(0.14 0.05 250 / 94%) 100%
+      oklch(0.18 0.04 250 / 12%) 0%,
+      oklch(0.16 0.05 250 / 28%) 34%,
+      oklch(0.14 0.05 250 / 88%) 68%,
+      oklch(0.12 0.05 250 / 96%) 100%
     ),
     radial-gradient(
       ellipse 80% 55% at 78% 18%,
-      oklch(0.85 0.16 88 / 28%) 0%,
+      oklch(0.85 0.16 88 / 22%) 0%,
       transparent 60%
     );
   pointer-events: none;
@@ -1694,35 +1694,66 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 0.28rem;
-  padding: clamp(0.7rem, 2.4vw, 1rem) clamp(0.75rem, 2.6vw, 1.1rem)
-    clamp(0.8rem, 2.6vw, 1.1rem);
+  justify-content: flex-end;
+  /* Same overlay height on every card so titles share one baseline. */
+  min-height: 46%;
+  padding: clamp(0.75rem, 2.4vw, 1.05rem) clamp(0.8rem, 2.6vw, 1.15rem)
+    clamp(0.85rem, 2.6vw, 1.15rem);
+}
+
+.vocablab-activity-card-copy {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  gap: 0.35rem;
+  width: 100%;
 }
 
 .vocablab-activity-card-eyebrow {
   margin: 0;
-  max-width: 22ch;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.22rem 0.55rem 0.26rem;
+  border-radius: 999px;
+  background: oklch(0.14 0.04 250 / 72%);
+  box-shadow:
+    inset 0 0 0 1px oklch(1 0 0 / 22%),
+    0 4px 14px oklch(0.12 0.04 250 / 35%);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: oklch(0.96 0.02 95 / 72%);
-  text-shadow: 0 1px 8px oklch(0.15 0.05 250 / 45%);
+  color: oklch(0.99 0.01 95);
+  line-height: 1.15;
+}
+
+.vocablab-activity-card-eyebrow.is-spacer {
+  visibility: hidden;
+  min-height: 1.4rem;
+  padding-block: 0.22rem;
 }
 
 .vocablab-activity-card-title {
+  --activity-mode-accent: oklch(0.92 0.12 88);
   margin: 0;
   max-width: 12ch;
-  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+  min-height: 1.95em;
+  font-size: clamp(1.4rem, 3.2vw, 1.9rem);
   font-weight: 700;
   line-height: 0.98;
   letter-spacing: -0.03em;
-  color: oklch(0.99 0.01 95);
+  color: var(--activity-mode-accent);
   text-shadow:
-    0 2px 0 oklch(0.2 0.05 250 / 35%),
-    0 10px 28px oklch(0.15 0.05 250 / 45%);
+    0 1px 0 oklch(0.2 0.05 250 / 45%),
+    0 8px 22px oklch(0.12 0.05 250 / 55%);
   animation: vocablab-activity-title-in 0.7s cubic-bezier(0.2, 1.15, 0.3, 1) both;
+}
+
+.vocablab-activity-card.is-mode-basic {
+  --activity-mode-accent: oklch(0.9 0.14 85);
+}
+
+.vocablab-activity-card.is-mode-time {
+  --activity-mode-accent: oklch(0.86 0.14 48);
 }
 
 .vocablab-activity-card.is-disabled {
@@ -1797,11 +1828,13 @@ button.vocablab-activity-card-mode.is-toggle:focus-visible {
 }
 
 .vocablab-activity-card-teaser {
-  margin: 0.05rem 0 0;
-  max-width: 24ch;
-  font-size: 0.78rem;
+  margin: 0;
+  max-width: 28ch;
+  min-height: 3.15em;
+  font-size: 0.8rem;
   line-height: 1.35;
-  color: oklch(0.93 0.02 95 / 82%);
+  color: oklch(0.96 0.02 95 / 90%);
+  text-shadow: 0 1px 10px oklch(0.12 0.04 250 / 50%);
 }
 
 @keyframes vocablab-activity-wheel-idle {

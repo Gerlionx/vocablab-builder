@@ -40,7 +40,7 @@ export const Route = createFileRoute("/create")({
 
 const MODE_TEASERS: Record<WheelGameModeId, string> = {
   basic: "Names spin. Someone lands. The room leans in.",
-  time: "Each side starts with a time bank. Escape on Got it — miss or timeout and you’re out.",
+  time: "Start with a time bank. Escape on Got it — miss or timeout and you’re out.",
 };
 
 function CreatePage() {
@@ -82,6 +82,7 @@ function CreatePage() {
                 disabled={!playable}
                 eyebrow="Wheel of Names"
                 title={mode.label}
+                modeId={mode.id}
                 artSrc={wheelModePosterSrc(mode.id)}
                 teaser={
                   playable

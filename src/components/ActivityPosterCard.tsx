@@ -25,6 +25,8 @@ type ActivityPosterCardProps = {
   modes?: readonly ModeChip[];
   /** Poster art under the wash. Defaults to the Standard Wheel poster. */
   artSrc?: string;
+  /** Themes the mode title colour on Activity cards. */
+  modeId?: WheelGameModeId | string;
   /** When set, card is visual-only (e.g. coming soon). */
   disabled?: boolean;
   /** Create hub: tap a mode chip to activate / set it for the Activity board. */
@@ -41,16 +43,26 @@ export function ActivityPosterCard({
   teaser,
   modes = [],
   artSrc = "/wheel-of-names-poster.png",
+  modeId,
   disabled = false,
   onModeClick,
   onOpen,
 }: ActivityPosterCardProps) {
-  function handleModeClick(event: MouseEvent, modeId: string) {
+  function handleModeClick(event: MouseEvent, nextModeId: string) {
     if (!onModeClick) return;
     event.preventDefault();
     event.stopPropagation();
-    onModeClick(modeId);
+    onModeClick(nextModeId);
   }
+
+  const cardClass = [
+    "vocablab-activity-card",
+    modeId ? `is-mode-${modeId}` : "",
+    disabled || !to ? "is-disabled" : "",
+    to && !disabled ? "group focus:outline-none" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   const body = (
     <>
@@ -66,56 +78,60 @@ export function ActivityPosterCard({
       </div>
 
       <div className="vocablab-activity-card-body">
-        {eyebrow ? (
-          <p className="vocablab-activity-card-eyebrow font-kids">{eyebrow}</p>
-        ) : null}
-        <h2 className="vocablab-activity-card-title font-kids">{title}</h2>
-        {modes.length ? (
-          <ul className="vocablab-activity-card-modes" aria-label="Game modes">
-            {modes.map((mode) => {
-              const className = [
-                "vocablab-activity-card-mode",
-                "font-kids",
-                mode.active ? "is-active" : "",
-                mode.dormant ? "is-dormant" : "",
-                onModeClick ? "is-toggle" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
+        <div className="vocablab-activity-card-copy">
+          {eyebrow ? (
+            <p className="vocablab-activity-card-eyebrow font-kids">{eyebrow}</p>
+          ) : (
+            <span className="vocablab-activity-card-eyebrow is-spacer" aria-hidden="true" />
+          )}
+          <h2 className="vocablab-activity-card-title font-kids">{title}</h2>
+          {modes.length ? (
+            <ul className="vocablab-activity-card-modes" aria-label="Game modes">
+              {modes.map((mode) => {
+                const className = [
+                  "vocablab-activity-card-mode",
+                  "font-kids",
+                  mode.active ? "is-active" : "",
+                  mode.dormant ? "is-dormant" : "",
+                  onModeClick ? "is-toggle" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
 
-              if (onModeClick) {
+                if (onModeClick) {
+                  return (
+                    <li key={mode.id}>
+                      <button
+                        type="button"
+                        className={className}
+                        aria-pressed={Boolean(mode.active)}
+                        onClick={(e) => handleModeClick(e, String(mode.id))}
+                      >
+                        {mode.label}
+                        {mode.active ? <span className="sr-only"> (active)</span> : null}
+                      </button>
+                    </li>
+                  );
+                }
+
                 return (
-                  <li key={mode.id}>
-                    <button
-                      type="button"
-                      className={className}
-                      aria-pressed={Boolean(mode.active)}
-                      onClick={(e) => handleModeClick(e, String(mode.id))}
-                    >
-                      {mode.label}
-                      {mode.active ? <span className="sr-only"> (active)</span> : null}
-                    </button>
+                  <li key={mode.id} className={className}>
+                    {mode.label}
+                    {mode.active ? <span className="sr-only"> (active)</span> : null}
                   </li>
                 );
-              }
-
-              return (
-                <li key={mode.id} className={className}>
-                  {mode.label}
-                  {mode.active ? <span className="sr-only"> (active)</span> : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-        <p className="vocablab-activity-card-teaser">{teaser}</p>
+              })}
+            </ul>
+          ) : null}
+          <p className="vocablab-activity-card-teaser">{teaser}</p>
+        </div>
       </div>
     </>
   );
 
   if (disabled || !to) {
     return (
-      <div className="vocablab-activity-card is-disabled" aria-disabled="true">
+      <div className={cardClass} aria-disabled="true">
         {body}
       </div>
     );
@@ -125,7 +141,7 @@ export function ActivityPosterCard({
     <Link
       to={to}
       {...(search ? { search } : {})}
-      className="vocablab-activity-card group focus:outline-none"
+      className={cardClass}
       onClick={() => onOpen?.()}
     >
       {body}
