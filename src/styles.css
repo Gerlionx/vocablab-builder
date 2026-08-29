@@ -1580,9 +1580,24 @@
 /* ——— Activity poster cards ——— */
 .vocablab-activity-board {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
-  gap: 1rem 1.1rem;
-  max-width: 42rem;
+  grid-template-columns: 1fr;
+  gap: 1rem 1.15rem;
+  width: 100%;
+  max-width: 44rem;
+}
+
+@media (min-width: 36rem) {
+  .vocablab-activity-board {
+    /* Side-by-side mode cards; grows across as more modes ship. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 56rem) {
+  .vocablab-activity-board {
+    grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+    max-width: 52rem;
+  }
 }
 
 .vocablab-activity-card {

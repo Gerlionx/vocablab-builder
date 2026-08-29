@@ -58,7 +58,7 @@ function CreatePage() {
 
   return (
     <AppChrome>
-      <main className="mx-auto max-w-3xl px-6 pb-24 pt-8">
+      <main className="mx-auto max-w-4xl px-6 pb-24 pt-8">
         <Link
           to="/home"
           className="mb-3 inline-block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
