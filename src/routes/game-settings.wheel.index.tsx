@@ -843,7 +843,7 @@ function WheelLessonsPage() {
           </div>
         </section>
 
-        <aside className="flex h-full min-h-[18rem] flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border sm:min-h-[24rem] lg:min-h-full">
+        <aside className="flex min-h-[18rem] flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border sm:min-h-[24rem] lg:h-0 lg:min-h-full">
           <button
             type="button"
             onClick={() => void openLessonPreview()}
@@ -915,7 +915,7 @@ function WheelLessonsPage() {
             )}
           </div>
           {(draft.excludedWordIds?.length ?? 0) > 0 ? (
-            <div className="border-t border-border px-4 py-2.5">
+            <div className="shrink-0 border-t border-border px-4 py-2.5">
               <button
                 type="button"
                 onClick={() => setDraft((d) => ({ ...d, excludedWordIds: [] }))}
