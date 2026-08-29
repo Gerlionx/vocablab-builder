@@ -300,10 +300,16 @@ function AssignWordModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="assign-image-title"
-      onClick={onClose}
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="flex max-h-[min(36rem,90vh)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-border"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 border-b border-border px-5 py-4">

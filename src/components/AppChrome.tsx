@@ -40,11 +40,11 @@ export function TopBar() {
 
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
     };
-    document.addEventListener("pointerdown", onDown);
-    return () => document.removeEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [open]);
 
   return (
@@ -60,7 +60,7 @@ export function TopBar() {
         <VocabLabLogo />
       </Link>
 
-      <div className="relative" ref={ref}>
+      <div className="relative z-50" ref={ref}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -86,53 +86,65 @@ export function TopBar() {
           </span>
         </button>
         {open ? (
-          <div role="menu" className="vocablab-teacher-menu">
-            <Link
-              to="/vocabulary"
-              onClick={() => setOpen(false)}
-              className="vocablab-teacher-menu-item"
-            >
-              <span className="vocablab-teacher-menu-title">Vocabulary</span>
-              <span className="vocablab-teacher-menu-hint">Browse the bank</span>
-            </Link>
-            <Link
-              to="/game-settings"
-              onClick={() => setOpen(false)}
-              className="vocablab-teacher-menu-item"
-            >
-              <span className="vocablab-teacher-menu-title">Create</span>
-              <span className="vocablab-teacher-menu-hint">Lessons & modes</span>
-            </Link>
-            <Link
-              to="/game-settings/images"
-              onClick={() => setOpen(false)}
-              className="vocablab-teacher-menu-item"
-            >
-              <span className="vocablab-teacher-menu-title">Images</span>
-              <span className="vocablab-teacher-menu-hint">Picture library</span>
-            </Link>
-            <Link
-              to="/account"
-              onClick={() => setOpen(false)}
-              className="vocablab-teacher-menu-item"
-            >
-              <span className="vocablab-teacher-menu-title">Profile</span>
-              <span className="vocablab-teacher-menu-hint">Password & account</span>
-            </Link>
-            <div className="vocablab-teacher-menu-rule" />
-            <Link
-              to="/"
-              onClick={() => {
-                void logoutFn();
-                endTeacherSession();
+          <>
+            {/* Full-screen dismiss layer — reliable on touch (tap away). */}
+            <button
+              type="button"
+              aria-label="Close menu"
+              className="fixed inset-0 z-40 cursor-default bg-transparent"
+              onPointerDown={(e) => {
+                e.preventDefault();
                 setOpen(false);
               }}
-              className="vocablab-teacher-menu-item is-danger"
-            >
-              <span className="vocablab-teacher-menu-title">Log out</span>
-              <span className="vocablab-teacher-menu-hint">End this session</span>
-            </Link>
-          </div>
+            />
+            <div role="menu" className="vocablab-teacher-menu relative z-50">
+              <Link
+                to="/vocabulary"
+                onClick={() => setOpen(false)}
+                className="vocablab-teacher-menu-item"
+              >
+                <span className="vocablab-teacher-menu-title">Vocabulary</span>
+                <span className="vocablab-teacher-menu-hint">Browse the bank</span>
+              </Link>
+              <Link
+                to="/game-settings"
+                onClick={() => setOpen(false)}
+                className="vocablab-teacher-menu-item"
+              >
+                <span className="vocablab-teacher-menu-title">Create</span>
+                <span className="vocablab-teacher-menu-hint">Lessons & modes</span>
+              </Link>
+              <Link
+                to="/game-settings/images"
+                onClick={() => setOpen(false)}
+                className="vocablab-teacher-menu-item"
+              >
+                <span className="vocablab-teacher-menu-title">Images</span>
+                <span className="vocablab-teacher-menu-hint">Picture library</span>
+              </Link>
+              <Link
+                to="/account"
+                onClick={() => setOpen(false)}
+                className="vocablab-teacher-menu-item"
+              >
+                <span className="vocablab-teacher-menu-title">Profile</span>
+                <span className="vocablab-teacher-menu-hint">Password & account</span>
+              </Link>
+              <div className="vocablab-teacher-menu-rule" />
+              <Link
+                to="/"
+                onClick={() => {
+                  void logoutFn();
+                  endTeacherSession();
+                  setOpen(false);
+                }}
+                className="vocablab-teacher-menu-item is-danger"
+              >
+                <span className="vocablab-teacher-menu-title">Log out</span>
+                <span className="vocablab-teacher-menu-hint">End this session</span>
+              </Link>
+            </div>
+          </>
         ) : null}
       </div>
     </nav>

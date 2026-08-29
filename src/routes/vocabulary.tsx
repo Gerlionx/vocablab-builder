@@ -982,25 +982,32 @@ function Modal({
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      if (!panelRef.current?.contains(e.target as Node)) onClose();
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
-    <div className="vocablab-modal-shell fixed inset-0 z-50 grid place-items-end bg-background/80 px-0 backdrop-blur-sm sm:place-items-center sm:px-6">
+    <div
+      className="vocablab-modal-shell fixed inset-0 z-50 grid place-items-end bg-background/80 px-0 backdrop-blur-sm sm:place-items-center sm:px-6"
+      role="presentation"
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
         className="vocablab-modal-panel max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-popover p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl ring-1 ring-border sm:max-h-[85vh] sm:rounded-3xl sm:p-8 sm:pb-8"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-4 sm:mb-6">
           <h2 className="text-xl font-medium tracking-tight">{title}</h2>

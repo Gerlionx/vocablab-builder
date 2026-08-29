@@ -119,8 +119,23 @@ function LoginPage() {
       </div>
 
       {forgot ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-6 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-3xl bg-popover p-8 text-center shadow-2xl ring-1 ring-border">
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-6 backdrop-blur-sm"
+          role="presentation"
+          onPointerDown={(e) => {
+            if (e.target === e.currentTarget) setForgot(false);
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setForgot(false);
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-3xl bg-popover p-8 text-center shadow-2xl ring-1 ring-border"
+            role="dialog"
+            aria-modal="true"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
             <p className="text-lg font-medium">Not available yet</p>
             <p className="mt-2 text-sm text-muted-foreground">
               Password resets will arrive in a later version of Vocablab.

@@ -122,11 +122,17 @@ function LibraryModal({
       role="dialog"
       aria-modal="true"
       aria-label="Image library"
-      onClick={onClose}
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         ref={panelRef}
         className="flex max-h-[min(36rem,88vh)] w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-card shadow-xl ring-1 ring-border"
+        onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">

@@ -1115,25 +1115,32 @@ function WordEditModal({
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onDown = (e: PointerEvent) => {
-      if (!panelRef.current?.contains(e.target as Node)) onClose();
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
-    document.addEventListener("pointerdown", onDown);
     document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/75 px-6 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-background/75 px-6 backdrop-blur-sm"
+      role="presentation"
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit word"
         className="max-h-[min(40rem,92vh)] w-full max-w-md overflow-y-auto rounded-3xl bg-popover p-6 shadow-2xl ring-1 ring-border sm:p-8"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
         <h2 className="font-kids text-xl font-semibold tracking-tight">Edit word</h2>
         <p className="mt-1 text-sm text-muted-foreground">Changes apply to this vocabulary entry.</p>
