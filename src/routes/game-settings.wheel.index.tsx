@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { BrandChipRow } from "@/components/BrandChipRow";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ImagePicker } from "@/components/ImagePicker";
 import { LangFlag } from "@/components/LangFlag";
 import { WordThumb } from "@/components/WordThumb";
@@ -929,44 +930,21 @@ function WheelLessonsPage() {
         </aside>
       </div>
 
-      {pendingDelete ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/25 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-lesson-title"
-          onClick={() => setPendingDelete(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-3xl bg-card p-6 shadow-lg ring-1 ring-border"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="delete-lesson-title" className="font-kids text-xl font-semibold tracking-tight">
-              Remove this lesson?
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              “{pendingDelete.title}” will be permanently removed from Your lessons. This cannot be
-              undone.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPendingDelete(null)}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-muted-foreground ring-1 ring-border hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => remove(pendingDelete.id)}
-                className="rounded-full bg-destructive px-4 py-2 text-sm font-semibold text-destructive-foreground"
-              >
-                Remove lesson
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmDialog
+        open={pendingDelete != null}
+        title="Remove this lesson?"
+        description={
+          <>
+            “{pendingDelete?.title}” will be permanently removed from Your lessons. This cannot be
+            undone.
+          </>
+        }
+        confirmLabel="Remove lesson"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete) void remove(pendingDelete.id);
+        }}
+      />
 
       {editWord ? (
         <WordEditModal

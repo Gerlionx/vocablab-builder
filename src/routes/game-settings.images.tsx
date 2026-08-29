@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { LangFlag } from "@/components/LangFlag";
 import {
   deleteLibraryImage,
@@ -35,6 +36,7 @@ function ImagesPage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<LibraryImage | null>(null);
   const [assigning, setAssigning] = useState<LibraryImage | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<LibraryImage | null>(null);
   const [patches, setPatches] = useState(() => loadWordPatches());
   const fileRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
@@ -83,7 +85,13 @@ function ImagesPage() {
       setError("Starter images stay in the pack — you can still assign them to words.");
       return;
     }
-    if (!window.confirm(`Remove “${img.title}” from your library?`)) return;
+    setPendingDelete(img);
+  }
+
+  function confirmRemove() {
+    const img = pendingDelete;
+    setPendingDelete(null);
+    if (!img || img.kind === "builtin") return;
     deleteLibraryImage(img.id);
     refresh();
     flash("Image removed");
@@ -252,6 +260,20 @@ function ImagesPage() {
           onAssign={(word) => assignToWord(assigning, word)}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={pendingDelete != null}
+        title="Delete this image?"
+        description={
+          <>
+            “{pendingDelete?.title}” will be permanently removed from your library. This cannot be
+            undone.
+          </>
+        }
+        confirmLabel="Delete image"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={confirmRemove}
+      />
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppChrome } from "@/components/AppChrome";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ImagePicker } from "@/components/ImagePicker";
 import {
   DIFFICULTIES,
@@ -80,6 +81,12 @@ function VocabularyPage() {
   const [restore, setRestore] = useState<null | {
     incoming: Word[];
     plan: VocabMergePlan;
+  }>(null);
+  const [pendingDelete, setPendingDelete] = useState<null | {
+    kind: "word" | "year" | "term" | "topic";
+    id?: string;
+    label: string;
+    count?: number;
   }>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -317,6 +324,56 @@ function VocabularyPage() {
     }
   }
 
+  async function confirmPendingDelete() {
+    const pending = pendingDelete;
+    setPendingDelete(null);
+    if (!pending) return;
+
+    if (pending.kind === "word" && pending.id) {
+      await deleteWord(pending.id);
+      flash("Word deleted");
+      return;
+    }
+
+    const name = pending.label;
+    const doomed =
+      pending.kind === "year"
+        ? words.filter((w) => w.year === name)
+        : pending.kind === "term"
+          ? words.filter((w) => w.term === name)
+          : words.filter((w) => w.topic === name);
+
+    if (pending.kind === "year") {
+      setYears((p) => p.filter((x) => x !== name));
+      updateWords((p) => p.filter((w) => w.year !== name));
+      if (year === name) {
+        const left = years.filter((x) => x !== name);
+        setYear(left[0] ?? "");
+      }
+    } else if (pending.kind === "term") {
+      setTerms((p) => p.filter((x) => x !== name));
+      updateWords((p) => p.filter((w) => w.term !== name));
+      if (selectedTerm === name) setSelectedTerm(null);
+    } else {
+      setTopics((p) => p.filter((x) => x !== name));
+      updateWords((p) => p.filter((w) => w.topic !== name));
+    }
+
+    if (editingName === name) {
+      setEditingName(null);
+      setEditNameValue("");
+    }
+
+    void Promise.all(
+      doomed.map((w) => deleteWordFn({ data: { id: w.id } }).catch(() => null)),
+    );
+    flash(
+      doomed.length
+        ? `Deleted ${name} and ${doomed.length} word${doomed.length === 1 ? "" : "s"}`
+        : `Deleted ${name}`,
+    );
+  }
+
   return (
     <AppChrome>
       <main className="vocablab-vocab-page mx-auto max-w-3xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:pb-32 sm:pt-8">
@@ -470,7 +527,13 @@ function VocabularyPage() {
                             key={item.id}
                             item={item}
                             onEdit={() => setDraft({ ...item })}
-                            onDelete={() => void deleteWord(item.id)}
+                            onDelete={() =>
+                              setPendingDelete({
+                                kind: "word",
+                                id: item.id,
+                                label: item.french,
+                              })
+                            }
                           />
                         ))}
                       </ul>
@@ -698,25 +761,17 @@ function VocabularyPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        if (manage === "year") {
-                          setYears((p) => p.filter((x) => x !== name));
-                          updateWords((p) => p.filter((w) => w.year !== name));
-                          if (year === name) {
-                            const left = years.filter((x) => x !== name);
-                            setYear(left[0] ?? "");
-                          }
-                        } else if (manage === "term") {
-                          setTerms((p) => p.filter((x) => x !== name));
-                          updateWords((p) => p.filter((w) => w.term !== name));
-                          if (selectedTerm === name) setSelectedTerm(null);
-                        } else {
-                          setTopics((p) => p.filter((x) => x !== name));
-                          updateWords((p) => p.filter((w) => w.topic !== name));
-                        }
-                        if (editingName === name) {
-                          setEditingName(null);
-                          setEditNameValue("");
-                        }
+                        const count =
+                          manage === "year"
+                            ? words.filter((w) => w.year === name).length
+                            : manage === "term"
+                              ? words.filter((w) => w.term === name).length
+                              : words.filter((w) => w.topic === name).length;
+                        setPendingDelete({
+                          kind: manage!,
+                          label: name,
+                          count,
+                        });
                       }}
                       className="min-h-11 rounded-lg px-3 text-sm font-medium text-destructive/80 hover:bg-destructive/10 hover:text-destructive"
                     >
@@ -805,6 +860,36 @@ function VocabularyPage() {
           </div>
         </Modal>
       ) : null}
+
+      <ConfirmDialog
+        open={pendingDelete != null}
+        title={
+          pendingDelete?.kind === "word"
+            ? "Delete this word?"
+            : `Delete this ${pendingDelete?.kind ?? "item"}?`
+        }
+        description={
+          pendingDelete?.kind === "word" ? (
+            <>
+              “{pendingDelete.label}” will be permanently removed from your vocabulary. This cannot
+              be undone.
+            </>
+          ) : (
+            <>
+              “{pendingDelete?.label}” will be removed
+              {(pendingDelete?.count ?? 0) > 0
+                ? `, along with ${pendingDelete?.count} word${
+                    pendingDelete?.count === 1 ? "" : "s"
+                  } in it`
+                : ""}
+              . This cannot be undone.
+            </>
+          )
+        }
+        confirmLabel={pendingDelete?.kind === "word" ? "Delete word" : "Delete"}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => void confirmPendingDelete()}
+      />
     </AppChrome>
   );
 }
