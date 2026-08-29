@@ -70,6 +70,7 @@ import {
   applyCorrectEscape,
   applySkipPenalty,
   countAlive,
+  displayBankSeconds,
   elapsedFromRoundClock,
   rankTimeBankContestants,
   roundClockSeconds,
@@ -457,6 +458,9 @@ function WheelPage() {
     );
   }, [players, teamsOn, turn, started, settings.gameMode, playerEliminated, teamEliminated]);
 
+  const wheelPlayersRef = useRef(wheelPlayers);
+  wheelPlayersRef.current = wheelPlayers;
+
   const slices = useMemo(() => {
     const list = wheelPlayers.length ? wheelPlayers : [{ name: "Add names", team: turn }];
     if (teamsOn) {
@@ -473,18 +477,33 @@ function WheelPage() {
       }
       // Same paint as the team name pills: each kid keeps their team colour on the disc.
       const shadeAt = new Map<number, number>();
-      return players.map((p) => {
-        const i = shadeAt.get(p.team) ?? 0;
-        shadeAt.set(p.team, i + 1);
-        const palette = palettes[p.team] ?? palettes[0]!;
-        return { name: p.name, ...teamSlicePaint(palette, i) };
-      });
+      return players
+        .filter((p) => !(started && settings.gameMode === "time" && teamEliminated[p.team]))
+        .map((p) => {
+          const i = shadeAt.get(p.team) ?? 0;
+          shadeAt.set(p.team, i + 1);
+          const palette = palettes[p.team] ?? palettes[0]!;
+          return { name: p.name, ...teamSlicePaint(palette, i) };
+        });
     }
-    if (!allNames.length) {
+    const names =
+      started && settings.gameMode === "time"
+        ? allNames.filter((n) => !playerEliminated[n])
+        : allNames;
+    if (!names.length) {
       return Array.from({ length: 8 }, (_, i) => ({ name: "", ...rainbowPaint(i) }));
     }
-    return allNames.map((name, i) => ({ name, ...rainbowPaint(i) }));
-  }, [allNames, palettes, players, teamsOn]);
+    return names.map((name, i) => ({ name, ...rainbowPaint(i) }));
+  }, [
+    allNames,
+    palettes,
+    players,
+    teamsOn,
+    started,
+    settings.gameMode,
+    playerEliminated,
+    teamEliminated,
+  ]);
 
   const onDisc =
     scene === "wheel" ||
@@ -990,6 +1009,10 @@ function WheelPage() {
   }
 
   function eligiblePlayers(): Player[] {
+    // Must match the names painted on the disc (wheelPlayers) so land index
+    // never points at a different kid than the pointer shows.
+    const onDisc = wheelPlayersRef.current;
+    if (onDisc.length) return onDisc;
     if (!teamsOn) {
       if (!timeBankMatch) return players;
       return players.filter((p) => !playerEliminatedRef.current[p.name]);
@@ -1000,7 +1023,9 @@ function WheelPage() {
       const other = teamForTurn(t);
       if (other.length) return other;
     }
-    return players;
+    return players.filter(
+      (p) => !(timeBankMatch && teamEliminatedRef.current[p.team]),
+    );
   }
 
   function landFromPhysics(deg: number) {
@@ -1025,10 +1050,13 @@ function WheelPage() {
     if (scene !== "landed" || !picked || deskOpen) return;
     const poolPlayers = eligiblePlayers();
     if (!poolPlayers.length) return;
-    const deg = physicsRef.current?.angleDeg ?? angle;
-    const idx = winnerIndex(deg, poolPlayers.length);
-    const landed = poolPlayers[idx] ?? picked;
-    if (landed.name !== picked.name) {
+    // Prefer the name already locked at rest if they are still on the disc;
+    // only re-resolve from angle when the pool changed (e.g. elimination).
+    let landed = poolPlayers.find((p) => p.name === picked.name) ?? null;
+    if (!landed) {
+      const deg = physicsRef.current?.angleDeg ?? angle;
+      const idx = winnerIndex(deg, poolPlayers.length);
+      landed = poolPlayers[idx] ?? poolPlayers[0]!;
       setPicked(landed);
       lastKidRef.current = landed.name;
     }
@@ -1456,17 +1484,36 @@ function WheelPage() {
     setPanelOpen(true);
   }
 
+  const questionOpen = scene === "question";
   const boardScores = timeBankMatch
-    ? banks.map((b, i) => (teamEliminated[i] ? 0 : Math.round(b)))
+    ? banks.map((b, i) =>
+        displayBankSeconds({
+          storedBank: b,
+          eliminated: Boolean(teamEliminated[i]),
+          isActive: Boolean(picked && teamsOn && picked.team === i),
+          questionOpen,
+          roundLeft: fuseLeft,
+        }),
+      )
     : scores;
   const boardPlayerScores = timeBankMatch
     ? Object.fromEntries(
         players.map((p) => [
           p.name,
-          playerEliminated[p.name] ? 0 : Math.round(playerBanks[p.name] ?? 0),
+          displayBankSeconds({
+            storedBank: playerBanks[p.name] ?? 0,
+            eliminated: Boolean(playerEliminated[p.name]),
+            isActive: picked?.name === p.name,
+            questionOpen,
+            roundLeft: fuseLeft,
+          }),
         ]),
       )
     : playerScores;
+  /** Alive contestants only — eliminated kids leave both board and wheel. */
+  const boardPlayers = timeBankMatch
+    ? players.filter((p) => !playerEliminated[p.name] && !(teamsOn && teamEliminated[p.team]))
+    : players;
   const showScoreRail = started && scene !== "toss" && !deskOpen;
   const teamCorners = teamsOn && teamCount === 2;
 
@@ -1479,7 +1526,7 @@ function WheelPage() {
             teamCount={teamCount}
             scores={boardScores}
             playerScores={boardPlayerScores}
-            players={players}
+            players={boardPlayers}
             palettes={palettes}
             playerScoredAt={playerScoredAt}
             teamScoredAt={teamScoredAt}
@@ -1501,7 +1548,7 @@ function WheelPage() {
               teamCount={teamCount}
               scores={boardScores}
               playerScores={boardPlayerScores}
-              players={players}
+              players={boardPlayers}
               palettes={palettes}
               playerScoredAt={playerScoredAt}
               teamScoredAt={teamScoredAt}

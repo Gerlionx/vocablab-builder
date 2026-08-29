@@ -4,6 +4,7 @@ import {
   applyCorrectEscape,
   applySkipPenalty,
   countAlive,
+  displayBankSeconds,
   elapsedFromRoundClock,
   rankTimeBankContestants,
   roundClockSeconds,
@@ -12,14 +13,59 @@ import {
 } from "./wheel-time-bank.ts";
 
 describe("time bank round clock", () => {
-  it("shows remaining bank before the buffer zone", () => {
+  it("always shows the real remaining bank (never a fixed buffer mask)", () => {
     assert.equal(roundClockSeconds(24, 10, false), 24);
     assert.equal(roundClockSeconds(10, 10, false), 10);
+    assert.equal(roundClockSeconds(3, 10, true), 3);
+    assert.equal(roundClockSeconds(0, 10, true), 0);
+  });
+});
+
+describe("time bank board display", () => {
+  it("mirrors the live round countdown for the active player", () => {
+    assert.equal(
+      displayBankSeconds({
+        storedBank: 15,
+        eliminated: false,
+        isActive: true,
+        questionOpen: true,
+        roundLeft: 7.2,
+      }),
+      8,
+    );
+    assert.equal(
+      displayBankSeconds({
+        storedBank: 15,
+        eliminated: false,
+        isActive: true,
+        questionOpen: true,
+        roundLeft: 7.0,
+      }),
+      7,
+    );
   });
 
-  it("shows buffer seconds once in the buffer zone", () => {
-    assert.equal(roundClockSeconds(3, 10, true), 10);
-    assert.equal(roundClockSeconds(0, 10, true), 10);
+  it("keeps stored bank for everyone else and zeroes eliminated", () => {
+    assert.equal(
+      displayBankSeconds({
+        storedBank: 15,
+        eliminated: false,
+        isActive: false,
+        questionOpen: true,
+        roundLeft: 7.2,
+      }),
+      15,
+    );
+    assert.equal(
+      displayBankSeconds({
+        storedBank: 15,
+        eliminated: true,
+        isActive: true,
+        questionOpen: true,
+        roundLeft: 7.2,
+      }),
+      0,
+    );
   });
 });
 

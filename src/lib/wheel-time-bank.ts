@@ -1,27 +1,48 @@
 /**
  * Time bank mode — elimination by response time, not score.
  *
- * Round clock shows remaining bank, or the buffer once a contestant has escaped
- * with bank < buffer. Reveal freezes the clock (kid presumed finished). Got it
- * then deducts the elapsed time before reveal. Missed / clock expiry eliminates.
+ * Round clock and leaderboard always show the contestant's true remaining
+ * bank. Reveal freezes the clock (kid presumed finished). Got it then deducts
+ * the elapsed time before reveal. Missed / clock expiry eliminates.
  * Skip does not eliminate (optional bank penalty only).
+ *
+ * `bufferSeconds` is a soft threshold after an escape (`inBufferZone`); it no
+ * longer replaces the next-round clock with a fixed buffer readout — that was
+ * confusing when e.g. 10s bank left still looked like a full buffer turn.
  */
 
 export type TimeBankEscapeResult = {
   bank: number;
-  /** Next round uses buffer seconds on the clock. */
+  /** Bank has dipped below the buffer threshold (informational). */
   inBufferZone: boolean;
 };
 
-/** Seconds shown on the round clock at question start. */
+/** Seconds shown on the round clock at question start — always the real bank. */
 export function roundClockSeconds(
   remainingBank: number,
-  bufferSeconds: number,
-  inBufferZone: boolean,
+  _bufferSeconds?: number,
+  _inBufferZone?: boolean,
 ): number {
-  const buffer = Math.max(1, Math.round(bufferSeconds));
-  if (inBufferZone) return buffer;
   return Math.max(0, remainingBank);
+}
+
+/**
+ * Seconds to show on the side board for one contestant.
+ * While their question is open, mirror the live round countdown (same ceil
+ * as the draining bar).
+ */
+export function displayBankSeconds(opts: {
+  storedBank: number;
+  eliminated: boolean;
+  isActive: boolean;
+  questionOpen: boolean;
+  roundLeft: number | null;
+}): number {
+  if (opts.eliminated) return 0;
+  if (opts.questionOpen && opts.isActive && opts.roundLeft != null) {
+    return Math.max(0, Math.ceil(opts.roundLeft - 1e-6));
+  }
+  return Math.max(0, Math.round(opts.storedBank));
 }
 
 /** After a correct escape outside or inside the buffer zone. */
