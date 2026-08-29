@@ -527,7 +527,7 @@ function WheelLessonsPage() {
               Activate or deactivate each mode for the Activity board. Turn one on to set its
               options — each mode keeps its own settings.
             </p>
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {WHEEL_GAME_MODES.map((mode) => {
                 const enabled = board.enabled.includes(mode.id);
                 const selected = draft.gameMode === mode.id;
@@ -953,7 +953,7 @@ function ModeToggleRow({
 }) {
   return (
     <div
-      className={`flex items-center gap-4 rounded-2xl px-4 py-3.5 ring-1 transition ${
+      className={`flex h-full min-h-[9.5rem] flex-col rounded-2xl px-4 py-4 ring-1 transition ${
         on
           ? selected
             ? "bg-primary/8 ring-primary/35"
@@ -961,30 +961,38 @@ function ModeToggleRow({
           : "bg-muted/50 ring-border"
       }`}
     >
-      <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
-        <p className="font-kids text-base font-semibold tracking-tight">{title}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>
+      <div className="flex items-start justify-between gap-3">
+        <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
+          <p className="font-kids text-base font-semibold tracking-tight">{title}</p>
+        </button>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label={`${on ? "Deactivate" : "Activate"} ${title}`}
+          onClick={() => onToggle(!on)}
+          className={`relative h-8 w-14 shrink-0 rounded-full transition ${
+            on ? "bg-primary" : "bg-muted ring-1 ring-border"
+          }`}
+        >
+          <span
+            className={`absolute top-1 size-6 rounded-full bg-white shadow transition ${
+              on ? "left-7" : "left-1"
+            }`}
+          />
+        </button>
+      </div>
+      <button type="button" onClick={onSelect} className="mt-2 min-w-0 flex-1 text-left">
+        <p className="text-xs leading-snug text-muted-foreground">{hint}</p>
         {on && selected ? (
-          <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
             Editing options
           </p>
-        ) : null}
-      </button>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={`${on ? "Deactivate" : "Activate"} ${title}`}
-        onClick={() => onToggle(!on)}
-        className={`relative h-8 w-14 shrink-0 rounded-full transition ${
-          on ? "bg-primary" : "bg-muted ring-1 ring-border"
-        }`}
-      >
-        <span
-          className={`absolute top-1 size-6 rounded-full bg-white shadow transition ${
-            on ? "left-7" : "left-1"
-          }`}
-        />
+        ) : (
+          <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-transparent">
+            Editing options
+          </p>
+        )}
       </button>
     </div>
   );
