@@ -2,8 +2,9 @@
  * Time bank mode — elimination by response time, not score.
  *
  * Round clock shows remaining bank, or the buffer once a contestant has escaped
- * with bank < buffer. Got it deducts elapsed time. Missed / clock expiry
- * eliminates. Skip does not count (no bank change).
+ * with bank < buffer. Reveal freezes the clock (kid presumed finished). Got it
+ * then deducts the elapsed time before reveal. Missed / clock expiry eliminates.
+ * Skip does not eliminate (optional bank penalty only).
  */
 
 export type TimeBankEscapeResult = {

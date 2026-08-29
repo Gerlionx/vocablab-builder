@@ -851,6 +851,47 @@
   overflow: visible;
 }
 
+.vocablab-time-bank {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.vocablab-time-bank-track {
+  height: 0.9rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: oklch(0.93 0.01 240);
+  box-shadow: inset 0 1px 2px oklch(0.35 0.02 240 / 0.14);
+}
+
+.vocablab-time-bank-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 50ms linear;
+}
+
+.vocablab-time-bank[data-paused="true"] .vocablab-time-bank-fill {
+  filter: saturate(0.82) brightness(0.96);
+}
+
+.vocablab-time-bank-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0 0.15rem;
+  font-size: clamp(0.95rem, 2vmin, 1.15rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.vocablab-time-bank-hint {
+  color: var(--muted-foreground);
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
 .vocablab-round-act {
   display: flex;
   width: clamp(4.75rem, 11.5vmin, 6.35rem);

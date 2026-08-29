@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { AnswerRevealer } from "@/components/wheel/AnswerRevealer";
 import { Fireworks } from "@/components/wheel/Fireworks";
 import { FuseWire } from "@/components/wheel/FuseWire";
+import { TimeBankBar } from "@/components/wheel/TimeBankBar";
 import { NameWheel } from "@/components/wheel/NameWheel";
 import { PlayLeaderboard } from "@/components/wheel/PlayLeaderboard";
 import { SetupPanel } from "@/components/wheel/SetupPanel";
@@ -643,7 +644,8 @@ function WheelPage() {
     if (scene !== "question") return;
     const fuseOn = timeBankMatch || fuse.enabled;
     if (!fuseOn || panelOpen) return;
-    if (!timeBankMatch && answerOpen) return;
+    // Reveal freezes the clock — presumed the kid already said the word.
+    if (answerOpen) return;
     const id = window.setInterval(() => {
       setFuseLeft((prev) => {
         if (prev == null) return prev;
@@ -657,7 +659,7 @@ function WheelPage() {
     if (scene !== "question") return;
     const fuseOn = timeBankMatch || fuse.enabled;
     if (!fuseOn) return;
-    if (!timeBankMatch && answerOpen) return;
+    if (answerOpen) return;
     if (fuseLeft == null) return;
     if (fuseLeft > 0) {
       fuseArmed.current = true;
@@ -674,7 +676,7 @@ function WheelPage() {
 
   const lastUrgent = useRef(11);
   useEffect(() => {
-    if (!timeBankMatch || scene !== "question" || panelOpen) {
+    if (!timeBankMatch || scene !== "question" || panelOpen || answerOpen) {
       lastUrgent.current = 11;
       return;
     }
@@ -688,7 +690,7 @@ function WheelPage() {
       lastUrgent.current = sec;
       void playUrgentTick();
     }
-  }, [fuseLeft, timeBankMatch, scene, panelOpen]);
+  }, [fuseLeft, timeBankMatch, scene, panelOpen, answerOpen]);
 
   useEffect(() => {
     const sim = new WheelPhysics(Math.max(1, slices.length), {
@@ -1597,7 +1599,9 @@ function WheelPage() {
                 hintAvailable={hintAvailable}
                 fuseEnabled={timeBankMatch || fuse.enabled}
                 fuseSeconds={fuse.seconds}
-                fusePaused={panelOpen || (!timeBankMatch && answerOpen)}
+                fuseLeft={fuseLeft}
+                timeBank={timeBankMatch}
+                fusePaused={panelOpen || answerOpen}
                 fuseKey={prompt?.word.id ?? picked?.name ?? "fuse"}
                 onUnlock={unlockAnswer}
                 onHint={revealHint}
@@ -1761,6 +1765,8 @@ function QuestionStage({
   hintAvailable,
   fuseEnabled,
   fuseSeconds,
+  fuseLeft,
+  timeBank = false,
   fusePaused,
   fuseKey,
   onUnlock,
@@ -1781,6 +1787,8 @@ function QuestionStage({
   hintAvailable: boolean;
   fuseEnabled: boolean;
   fuseSeconds: number;
+  fuseLeft: number | null;
+  timeBank?: boolean;
   fusePaused: boolean;
   fuseKey: string;
   onUnlock: () => void;
@@ -1864,7 +1872,16 @@ function QuestionStage({
 
         {fuseEnabled ? (
           <div className="vocablab-ask-fuse">
-            <FuseWire seconds={fuseSeconds} paused={fusePaused} resetKey={fuseKey} />
+            {timeBank ? (
+              <TimeBankBar
+                totalSeconds={fuseSeconds}
+                remainingSeconds={fuseLeft ?? fuseSeconds}
+                color={teamColor}
+                paused={fusePaused}
+              />
+            ) : (
+              <FuseWire seconds={fuseSeconds} paused={fusePaused} resetKey={fuseKey} />
+            )}
           </div>
         ) : null}
       </div>
