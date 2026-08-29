@@ -2,8 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnswerRevealer } from "@/components/wheel/AnswerRevealer";
 import { Fireworks } from "@/components/wheel/Fireworks";
-import { FuseWire } from "@/components/wheel/FuseWire";
-import { TimeBankBar } from "@/components/wheel/TimeBankBar";
+import { RoundTimerBar } from "@/components/wheel/RoundTimerBar";
 import { NameWheel } from "@/components/wheel/NameWheel";
 import { PlayLeaderboard } from "@/components/wheel/PlayLeaderboard";
 import { SetupPanel } from "@/components/wheel/SetupPanel";
@@ -1649,7 +1648,6 @@ function WheelPage() {
                 fuseLeft={fuseLeft}
                 timeBank={timeBankMatch}
                 fusePaused={panelOpen || answerOpen}
-                fuseKey={prompt?.word.id ?? picked?.name ?? "fuse"}
                 onUnlock={unlockAnswer}
                 onHint={revealHint}
                 onCorrect={markCorrect}
@@ -1815,7 +1813,6 @@ function QuestionStage({
   fuseLeft,
   timeBank = false,
   fusePaused,
-  fuseKey,
   onUnlock,
   onHint,
   onCorrect,
@@ -1837,7 +1834,6 @@ function QuestionStage({
   fuseLeft: number | null;
   timeBank?: boolean;
   fusePaused: boolean;
-  fuseKey: string;
   onUnlock: () => void;
   onHint: () => void;
   onCorrect: () => void;
@@ -1919,16 +1915,13 @@ function QuestionStage({
 
         {fuseEnabled ? (
           <div className="vocablab-ask-fuse">
-            {timeBank ? (
-              <TimeBankBar
-                totalSeconds={fuseSeconds}
-                remainingSeconds={fuseLeft ?? fuseSeconds}
-                color={teamColor}
-                paused={fusePaused}
-              />
-            ) : (
-              <FuseWire seconds={fuseSeconds} paused={fusePaused} resetKey={fuseKey} />
-            )}
+            <RoundTimerBar
+              totalSeconds={fuseSeconds}
+              remainingSeconds={fuseLeft ?? fuseSeconds}
+              color={teamColor}
+              paused={fusePaused}
+              hint={timeBank ? "Bank left" : "Time left"}
+            />
           </div>
         ) : null}
       </div>

@@ -851,32 +851,32 @@
   overflow: visible;
 }
 
-.vocablab-time-bank {
+.vocablab-timer-bar {
   display: flex;
   width: 100%;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.45rem;
 }
 
-.vocablab-time-bank-track {
-  height: 0.9rem;
+.vocablab-timer-bar-track {
+  height: 1.35rem;
   overflow: hidden;
   border-radius: 999px;
   background: oklch(0.93 0.01 240);
   box-shadow: inset 0 1px 2px oklch(0.35 0.02 240 / 0.14);
 }
 
-.vocablab-time-bank-fill {
+.vocablab-timer-bar-fill {
   height: 100%;
   border-radius: 999px;
   transition: width 50ms linear;
 }
 
-.vocablab-time-bank[data-paused="true"] .vocablab-time-bank-fill {
+.vocablab-timer-bar[data-paused="true"] .vocablab-timer-bar-fill {
   filter: saturate(0.82) brightness(0.96);
 }
 
-.vocablab-time-bank-meta {
+.vocablab-timer-bar-meta {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -886,7 +886,7 @@
   line-height: 1.2;
 }
 
-.vocablab-time-bank-hint {
+.vocablab-timer-bar-hint {
   color: var(--muted-foreground);
   font-size: 0.85em;
   font-weight: 500;
@@ -919,46 +919,6 @@
   visibility: hidden;
   pointer-events: none;
   box-shadow: none;
-}
-
-.vocablab-fuse {
-  position: relative;
-  height: 4.5rem;
-  overflow: visible;
-}
-
-.vocablab-fuse-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 72%;
-  height: 0.55rem;
-  translate: 0 -50%;
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--primary) 22%, white);
-  box-shadow: inset 0 1px 1px oklch(1 0 0 / 0.35);
-}
-
-.vocablab-fuse-fill {
-  height: 100%;
-  width: 0%;
-  border-radius: 999px;
-  background: var(--primary);
-  box-shadow: 0 0 10px color-mix(in oklab, var(--primary) 45%, transparent);
-}
-
-.vocablab-fuse-sparks {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vocablab-fuse-sparks {
-    display: none;
-  }
 }
 
 @media (max-width: 40rem) {

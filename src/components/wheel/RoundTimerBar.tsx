@@ -1,14 +1,17 @@
-/** Team-coloured bank bar — full at question start, empties as time spends. */
-export function TimeBankBar({
+/** Coloured countdown bar — full at question start, empties as time spends. */
+export function RoundTimerBar({
   totalSeconds,
   remainingSeconds,
   color,
   paused,
+  hint = "Time left",
 }: {
   totalSeconds: number;
   remainingSeconds: number;
   color: string;
   paused: boolean;
+  /** Right-side caption while running (e.g. "Bank left" / "Time left"). */
+  hint?: string;
 }) {
   const total = Math.max(0.001, totalSeconds);
   const left = Math.max(0, remainingSeconds);
@@ -17,17 +20,17 @@ export function TimeBankBar({
 
   return (
     <div
-      className="vocablab-time-bank"
+      className="vocablab-timer-bar"
       data-paused={paused ? "true" : "false"}
       role="progressbar"
       aria-valuemin={0}
       aria-valuemax={Math.round(total)}
       aria-valuenow={display}
-      aria-label={paused ? `Time bank paused at ${display} seconds` : `Time bank ${display} seconds left`}
+      aria-label={paused ? `Timer paused at ${display} seconds` : `${display} seconds left`}
     >
-      <div className="vocablab-time-bank-track">
+      <div className="vocablab-timer-bar-track">
         <div
-          className="vocablab-time-bank-fill"
+          className="vocablab-timer-bar-fill"
           style={{
             width: `${pct}%`,
             background: color,
@@ -35,11 +38,9 @@ export function TimeBankBar({
           }}
         />
       </div>
-      <p className="vocablab-time-bank-meta font-kids">
+      <p className="vocablab-timer-bar-meta font-kids">
         <span style={{ color }}>{display}s</span>
-        <span className="vocablab-time-bank-hint">
-          {paused ? "Paused" : "Bank left"}
-        </span>
+        <span className="vocablab-timer-bar-hint">{paused ? "Paused" : hint}</span>
       </p>
     </div>
   );
