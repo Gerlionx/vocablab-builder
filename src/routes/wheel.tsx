@@ -32,6 +32,7 @@ import { SEED_WORDS, filterWords, type Word } from "@/lib/vocab-data";
 import { resolveImageSrc } from "@/lib/image-library";
 import { pickPrompt, wheelPlayableWords } from "@/lib/wheel-prompt";
 import { applyWordPatches } from "@/lib/word-patches";
+import { hydrateTeacherCloud } from "@/lib/teacher-cloud";
 import {
   readSessionNames,
   readSessionRoster,
@@ -261,6 +262,9 @@ function WheelPage() {
     setNamesText(readSessionNames());
     setRoster(readSessionRoster());
     setLessons(listWheelLessons());
+    void hydrateTeacherCloud()
+      .then(() => setLessons(listWheelLessons()))
+      .catch(() => {});
     const boot = lastWheelLesson();
     let nextSettings = boot ? lessonToSettings(boot) : loadWheelSettings();
     if (boot) {

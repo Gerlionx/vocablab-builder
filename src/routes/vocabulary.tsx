@@ -23,7 +23,7 @@ import {
   type VocabMergePlan,
 } from "@/lib/vocab-backup";
 import { applyWordPatches, saveWordPatch } from "@/lib/word-patches";
-import { importSeedWordsFn, listWordsFn } from "@/lib/api/words";
+import { deleteWordFn, importSeedWordsFn, listWordsFn, upsertWordFn } from "@/lib/api/words";
 
 export const Route = createFileRoute("/vocabulary")({
   head: () => ({
@@ -253,30 +253,68 @@ function VocabularyPage() {
     return true;
   }
 
-  function saveDraft(d: Draft) {
+  async function saveDraft(d: Draft) {
     const image = d.image?.trim() || undefined;
     const payload = { ...d, image };
-    if (d.id) {
-      updateWords((prev) =>
-        prev.map((w) =>
-          w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w,
-        ),
-      );
-      saveWordPatch(d.id, {
-        french: d.french,
-        english: d.english,
-        year: d.year,
-        term: d.term,
-        topic: d.topic,
-        difficulty: d.difficulty,
-        image: image ?? "",
+    try {
+      const remote = await upsertWordFn({
+        data: {
+          id: d.id,
+          word: {
+            year: d.year,
+            term: d.term,
+            topic: d.topic,
+            difficulty: d.difficulty,
+            french: d.french,
+            english: d.english,
+            image: image ?? null,
+          },
+        },
       });
-    } else {
-      updateWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
-      if (d.year !== year) setYear(d.year);
-      if (d.term) setSelectedTerm(d.term);
+      if (d.id) {
+        updateWords((prev) =>
+          prev.map((w) => (w.id === d.id || w.id === remote.id ? remote : w)),
+        );
+      } else {
+        updateWords((prev) => [...prev, remote]);
+        if (d.year !== year) setYear(d.year);
+        if (d.term) setSelectedTerm(d.term);
+      }
+      setDraft(null);
+      flash("Word saved");
+    } catch {
+      if (d.id) {
+        updateWords((prev) =>
+          prev.map((w) =>
+            w.id === d.id ? ({ ...w, ...payload, id: d.id } as Word) : w,
+          ),
+        );
+        saveWordPatch(d.id, {
+          french: d.french,
+          english: d.english,
+          year: d.year,
+          term: d.term,
+          topic: d.topic,
+          difficulty: d.difficulty,
+          image: image ?? "",
+        });
+      } else {
+        updateWords((prev) => [...prev, { ...payload, id: nextId() } as Word]);
+        if (d.year !== year) setYear(d.year);
+        if (d.term) setSelectedTerm(d.term);
+      }
+      setDraft(null);
+      flash("Saved on this device only — sign in to sync");
     }
-    setDraft(null);
+  }
+
+  async function deleteWord(id: string) {
+    updateWords((prev) => prev.filter((x) => x.id !== id));
+    try {
+      await deleteWordFn({ data: { id } });
+    } catch {
+      /* local remove already applied */
+    }
   }
 
   return (
@@ -432,9 +470,7 @@ function VocabularyPage() {
                             key={item.id}
                             item={item}
                             onEdit={() => setDraft({ ...item })}
-                            onDelete={() =>
-                              updateWords((prev) => prev.filter((x) => x.id !== item.id))
-                            }
+                            onDelete={() => void deleteWord(item.id)}
                           />
                         ))}
                       </ul>

@@ -550,7 +550,7 @@ export const SEED_WORDS: Word[] = [
   ...YEAR9_MORE_ABLE_WORDS,
 ];
 
-export const USE_DEMO_NAMES = true;
+export const USE_DEMO_NAMES = false;
 
 export const DEMO_NAMES = [
   "Sophie",

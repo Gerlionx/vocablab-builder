@@ -108,6 +108,28 @@ export function loadWheelSettings(): WheelSettings {
 
 export function saveWheelSettings(next: WheelSettings) {
   localStorage.setItem(KEY, JSON.stringify(next));
+  scheduleCloudSettingsPush();
+}
+
+let cloudPushSuppressed = 0;
+
+/** Run local settings writes without scheduling a Postgres push (hydrate path). */
+export function withoutCloudSettingsPush(fn: () => void) {
+  cloudPushSuppressed += 1;
+  try {
+    fn();
+  } finally {
+    cloudPushSuppressed -= 1;
+  }
+}
+
+function scheduleCloudSettingsPush() {
+  if (typeof window === "undefined" || cloudPushSuppressed > 0) return;
+  void import("./teacher-cloud")
+    .then((m) => m.pushGameSettingsCloud())
+    .catch(() => {
+      /* offline / unauthenticated — local cache remains */
+    });
 }
 
 /** Modes the teacher activated for the Activity board (at least Standard). */
@@ -154,8 +176,10 @@ export function saveBoardModes(next: BoardModesState) {
   // Keep match settings in sync with the board's active mode.
   const settings = loadWheelSettings();
   if (settings.gameMode !== active) {
-    saveWheelSettings({ ...settings, gameMode: active });
+    // Write wheel settings without a second cloud push — we push once below.
+    localStorage.setItem(KEY, JSON.stringify({ ...settings, gameMode: active }));
   }
+  scheduleCloudSettingsPush();
 }
 
 /** Activate a mode onto the Activity board and make it the green active chip. */
@@ -306,6 +330,7 @@ export function loadModeSettings(): WheelModeSettingsStore {
 
 export function saveModeSettings(next: WheelModeSettingsStore) {
   localStorage.setItem(MODE_SETTINGS_KEY, JSON.stringify(next));
+  scheduleCloudSettingsPush();
 }
 
 /** Merge draft-facing fields from a mode's saved settings. */
@@ -375,6 +400,7 @@ export function saveFuseConfig(next: FuseConfig) {
       seconds: clamp(Number(next.seconds) || DEFAULT_FUSE.seconds, 1, 600),
     }),
   );
+  scheduleCloudSettingsPush();
 }
 
 export function describeSettings(s: WheelSettings) {

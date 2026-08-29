@@ -117,8 +117,20 @@ export const upsertLessonFn = createServerFn({ method: "POST" })
         RETURNING id, title, game_mode, filters, excluded_word_ids, ask_direction,
                   score_to_win, seconds_per_team, extra, updated_at
       `;
-      if (!rows[0]) throw new Response("Not found", { status: 404 });
-      return rowToLesson(rows[0]);
+      if (rows[0]) return rowToLesson(rows[0]);
+      const inserted = await sql<LessonRow[]>`
+        INSERT INTO lessons (
+          id, teacher_id, title, game_mode, filters, excluded_word_ids,
+          ask_direction, score_to_win, seconds_per_team, extra
+        ) VALUES (
+          ${data.id}::uuid, ${teacher.id}::uuid, ${data.title}, ${data.gameMode},
+          ${sql.json(filters)}, ${data.excludedWordIds}, ${data.askDirection},
+          ${data.scoreToWin}, ${data.secondsPerTeam}, ${sql.json(extra)}
+        )
+        RETURNING id, title, game_mode, filters, excluded_word_ids, ask_direction,
+                  score_to_win, seconds_per_team, extra, updated_at
+      `;
+      return rowToLesson(inserted[0]!);
     }
     const rows = await sql<LessonRow[]>`
       INSERT INTO lessons (

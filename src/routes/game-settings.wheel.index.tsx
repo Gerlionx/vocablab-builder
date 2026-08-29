@@ -36,18 +36,24 @@ import {
 } from "@/lib/vocab-data";
 import { facetOptionCounts } from "@/lib/vocab-filter";
 import {
+  deleteLessonCloud,
+  hydrateTeacherCloud,
+  persistLessonCloud,
+} from "@/lib/teacher-cloud";
+import {
   abbreviateLessonTitle,
   blankLessonDraft,
-  deleteWheelLesson,
   describeLesson,
+  isLessonUuid,
   listWheelLessons,
   tidyLessonTitle,
-  upsertWheelLesson,
   type WheelLesson,
 } from "@/lib/wheel-lessons";
+import { listWordsFn, upsertWordFn } from "@/lib/api/words";
 import { WHEEL_GAME_MODES, type WheelGameModeId } from "@/lib/wheel-modes";
 import { wheelPlayableWords } from "@/lib/wheel-prompt";
 import { applyWordPatches, loadWordPatches, saveWordPatch, type WordPatch } from "@/lib/word-patches";
+import { loadPersistedWordBank } from "@/lib/vocab-backup";
 
 export const Route = createFileRoute("/game-settings/wheel/")({
   head: () => ({
@@ -78,12 +84,16 @@ function WheelLessonsPage() {
     useState<WheelModeSettingsStore>(DEFAULT_MODE_SETTINGS);
   const [patches, setPatches] = useState<Record<string, WordPatch>>({});
   const [editWord, setEditWord] = useState<Word | null>(null);
+  const [bankWords, setBankWords] = useState<Word[]>(
+    () => loadPersistedWordBank() ?? applyWordPatches(SEED_WORDS, {}),
+  );
   const [pendingDelete, setPendingDelete] = useState<WheelLesson | null>(null);
   const [ready, setReady] = useState(false);
   const titleTouched = useRef(false);
   const defaultsRef = useRef(DEFAULT_WHEEL_SETTINGS);
 
   useEffect(() => {
+    let cancelled = false;
     defaultsRef.current = loadWheelSettings();
     const modes = loadModeSettings();
     const boardState = loadBoardModes();
@@ -99,10 +109,43 @@ function WheelLessonsPage() {
         modes,
       ),
     );
-    setReady(true);
+    void Promise.all([
+      hydrateTeacherCloud(),
+      listWordsFn().catch(() => [] as Word[]),
+    ])
+      .then(([cloud, remoteWords]) => {
+        if (cancelled) return;
+        defaultsRef.current = cloud.wheel;
+        setLessons(cloud.lessons.length ? cloud.lessons : listWheelLessons());
+        setFuse(cloud.fuse);
+        setModeSettings(cloud.modeSettings);
+        setBoard(cloud.board);
+        if (remoteWords.length) setBankWords(remoteWords);
+        setDraft((d) =>
+          d.id
+            ? d
+            : applyModeSettingsToDraft(
+                blankLessonDraft(cloud.wheel),
+                cloud.board.active,
+                cloud.modeSettings,
+              ),
+        );
+      })
+      .catch(() => {
+        /* offline — keep local caches */
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const words = useMemo(() => applyWordPatches(SEED_WORDS, patches), [patches]);
+  const words = useMemo(
+    () => (bankWords.length ? bankWords : applyWordPatches(SEED_WORDS, patches)),
+    [bankWords, patches],
+  );
 
   /** Gap-fill stems excluded — same deck the wheel actually plays. */
   const playableWords = useMemo(() => wheelPlayableWords(words), [words]);
@@ -331,49 +374,105 @@ function WheelLessonsPage() {
     await navigate({ to: "/game-settings/wheel/lesson" });
   }
 
-  function save() {
+  async function save() {
     if (pool.length === 0) {
       flash("Choose filters so the lesson includes at least one word");
       return;
     }
-    const saved = upsertWheelLesson({
-      ...draft,
-      title:
-        tidyLessonTitle(draft.title) ||
-        abbreviateLessonTitle({
-          years: draft.years,
-          terms: draft.terms,
-          topics: draft.topics,
-          difficulties: draft.difficulties,
-        }),
-    });
-    setDraft({ ...draft, id: saved.id, title: saved.title });
-    titleTouched.current = true;
-    refresh();
-    flash(`Saved “${saved.title}”`);
+    try {
+      const saved = await persistLessonCloud({
+        ...draft,
+        title:
+          tidyLessonTitle(draft.title) ||
+          abbreviateLessonTitle({
+            years: draft.years,
+            terms: draft.terms,
+            topics: draft.topics,
+            difficulties: draft.difficulties,
+          }),
+      });
+      setDraft({ ...draft, id: saved.id, title: saved.title });
+      titleTouched.current = true;
+      refresh();
+      flash(`Saved “${saved.title}”`);
+    } catch {
+      flash("Could not save lesson — check you are signed in");
+    }
   }
 
-  function remove(id: string) {
-    deleteWheelLesson(id);
-    refresh();
-    if (draft.id === id) newLesson();
-    setPendingDelete(null);
-    flash("Lesson deleted");
+  async function remove(id: string) {
+    try {
+      await deleteLessonCloud(id);
+      refresh();
+      if (draft.id === id) newLesson();
+      setPendingDelete(null);
+      flash("Lesson deleted");
+    } catch {
+      flash("Could not delete lesson");
+    }
   }
 
-  function saveWordEdit(next: Word) {
-    saveWordPatch(next.id, {
-      french: next.french,
-      english: next.english,
-      year: next.year,
-      term: next.term,
-      topic: next.topic,
-      difficulty: next.difficulty,
-      image: next.image || "",
-    });
-    setPatches(loadWordPatches());
-    setEditWord(null);
-    flash("Word updated");
+  async function saveWordEdit(next: Word) {
+    try {
+      const remote = await upsertWordFn({
+        data: {
+          id: isLessonUuid(next.id) ? next.id : undefined,
+          word: {
+            year: next.year,
+            term: next.term,
+            topic: next.topic,
+            difficulty: next.difficulty,
+            french: next.french,
+            english: next.english,
+            image: next.image ?? null,
+          },
+        },
+      });
+      saveWordPatch(remote.id, {
+        french: remote.french,
+        english: remote.english,
+        year: remote.year,
+        term: remote.term,
+        topic: remote.topic,
+        difficulty: remote.difficulty,
+        image: remote.image || "",
+      });
+      if (remote.id !== next.id) {
+        saveWordPatch(next.id, {
+          french: remote.french,
+          english: remote.english,
+          year: remote.year,
+          term: remote.term,
+          topic: remote.topic,
+          difficulty: remote.difficulty,
+          image: remote.image || "",
+        });
+      }
+      setPatches(loadWordPatches());
+      setBankWords((prev) => {
+        if (!prev.length) return prev;
+        return prev.map((w) =>
+          w.id === next.id || w.id === remote.id
+            ? { ...remote }
+            : w,
+        );
+      });
+      setEditWord(null);
+      flash("Word updated");
+    } catch {
+      saveWordPatch(next.id, {
+        french: next.french,
+        english: next.english,
+        year: next.year,
+        term: next.term,
+        topic: next.topic,
+        difficulty: next.difficulty,
+        image: next.image || "",
+      });
+      setPatches(loadWordPatches());
+      setEditWord(null);
+      flash("Word saved on this device only");
+    }
   }
 
   return (

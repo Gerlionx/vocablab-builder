@@ -50,7 +50,16 @@ export type WheelLesson = {
 };
 
 function newId() {
-  return `L_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0").slice(-12)}`;
+}
+
+export function isLessonUuid(id: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    id,
+  );
 }
 
 export function tidyLessonTitle(raw: string) {
@@ -244,10 +253,13 @@ export function upsertWheelLesson(
   const title = tidyLessonTitle(input.title) || suggestLessonTitle(input.years, input.topics);
   const list = listWheelLessons();
   const byId = input.id ? list.find((s) => s.id === input.id) : undefined;
-  const byTitle = list.find((s) => s.title.toLowerCase() === title.toLowerCase());
+  // Only merge by title when creating a new lesson (no id); never remap an explicit id.
+  const byTitle = input.id
+    ? undefined
+    : list.find((s) => s.title.toLowerCase() === title.toLowerCase());
   const existing = byId ?? byTitle;
   const saved: WheelLesson = {
-    id: existing?.id ?? newId(),
+    id: existing?.id ?? (input.id && isLessonUuid(input.id) ? input.id : newId()),
     title,
     savedAt: Date.now(),
     years: asList(input.years, ["Year 7"]),
@@ -310,6 +322,27 @@ export function deleteWheelLesson(id: string) {
   const next = listWheelLessons().filter((s) => s.id !== id);
   writeList(next);
   if (lastWheelLessonId() === id) rememberWheelLessonId(next[0]?.id ?? null);
+}
+
+/** Replace the local lesson cache with the server list (keeps offline fallback empty if remote is empty). */
+export function replaceWheelLessonsCache(lessons: WheelLesson[]) {
+  if (typeof window === "undefined") return;
+  const normalised = lessons
+    .map((lesson) => normaliseLesson(lesson))
+    .filter((s): s is WheelLesson => s !== null)
+    .sort((a, b) => b.savedAt - a.savedAt);
+  writeList(normalised);
+  const last = lastWheelLessonId();
+  if (last && !normalised.some((s) => s.id === last)) {
+    rememberWheelLessonId(normalised[0]?.id ?? null);
+  }
+}
+
+export function writeWheelLessonCache(lesson: WheelLesson) {
+  if (typeof window === "undefined") return;
+  const list = listWheelLessons();
+  writeList([lesson, ...list.filter((s) => s.id !== lesson.id)].slice(0, MAX_SAVED));
+  rememberWheelLessonId(lesson.id);
 }
 
 function normaliseLesson(raw: unknown): WheelLesson | null {

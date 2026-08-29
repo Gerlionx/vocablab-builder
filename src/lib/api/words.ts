@@ -18,6 +18,7 @@ type WordRow = {
 };
 
 function rowToWord(row: WordRow): Word {
+  const image = row.image_id ? `/api/uploads/${row.image_id}` : undefined;
   return {
     id: row.id,
     year: row.year,
@@ -26,7 +27,7 @@ function rowToWord(row: WordRow): Word {
     difficulty: row.difficulty as Difficulty,
     french: row.french,
     english: row.english,
-    image: row.image_ref ?? (row.image_id ? `/api/uploads/${row.image_id}` : undefined),
+    ...(image ? { image } : {}),
   };
 }
 
@@ -40,6 +41,18 @@ const wordInput = z.object({
   image: z.string().optional().nullable(),
 });
 
+function parseUploadImageId(image?: string | null): string | null {
+  if (!image) return null;
+  const match = String(image).match(/\/api\/uploads\/([0-9a-f-]{36})/i);
+  return match?.[1] ?? null;
+}
+
+function isUuid(id: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    id,
+  );
+}
+
 export const listWordsFn = createServerFn({ method: "GET" }).handler(async () => {
   const teacher = await requireTeacher();
   const rows = await sql<WordRow[]>`
@@ -50,29 +63,22 @@ export const listWordsFn = createServerFn({ method: "GET" }).handler(async () =>
     ORDER BY year, term, topic, sort_order, french
   `;
   // Prefer image_id URL; optional image_ref column may not exist yet.
-  return rows.map((row) => ({
-    id: row.id,
-    year: row.year,
-    term: row.term,
-    topic: row.topic,
-    difficulty: row.difficulty as Difficulty,
-    french: row.french,
-    english: row.english,
-    image: row.image_id ? `/api/uploads/${row.image_id}` : undefined,
-  })) satisfies Word[];
+  return rows.map((row) => rowToWord(row));
 });
 
 export const upsertWordFn = createServerFn({ method: "POST" })
   .validator(
     z.object({
-      id: z.string().uuid().optional(),
+      id: z.string().min(1).max(80).optional(),
       word: wordInput,
     }),
   )
   .handler(async ({ data }) => {
     const teacher = await requireTeacher();
     const w = data.word;
-    if (data.id) {
+    const imageId = parseUploadImageId(w.image);
+    const id = data.id && isUuid(data.id) ? data.id : undefined;
+    if (id) {
       const rows = await sql<WordRow[]>`
         UPDATE words SET
           year = ${w.year},
@@ -81,19 +87,30 @@ export const upsertWordFn = createServerFn({ method: "POST" })
           difficulty = ${w.difficulty},
           french = ${w.french},
           english = ${w.english},
+          image_id = ${imageId},
           updated_at = now()
-        WHERE id = ${data.id}::uuid AND teacher_id = ${teacher.id}::uuid
+        WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
         RETURNING id, year, term, topic, difficulty, french, english, image_id,
                   NULL::text AS image_ref, sort_order
       `;
-      if (!rows[0]) throw new Response("Not found", { status: 404 });
-      return rowToWord(rows[0]);
+      if (rows[0]) return rowToWord(rows[0]);
+      const inserted = await sql<WordRow[]>`
+        INSERT INTO words (
+          id, teacher_id, year, term, topic, difficulty, french, english, image_id
+        ) VALUES (
+          ${id}::uuid, ${teacher.id}::uuid, ${w.year}, ${w.term}, ${w.topic},
+          ${w.difficulty}, ${w.french}, ${w.english}, ${imageId}
+        )
+        RETURNING id, year, term, topic, difficulty, french, english, image_id,
+                  NULL::text AS image_ref, sort_order
+      `;
+      return rowToWord(inserted[0]!);
     }
     const rows = await sql<WordRow[]>`
-      INSERT INTO words (teacher_id, year, term, topic, difficulty, french, english)
+      INSERT INTO words (teacher_id, year, term, topic, difficulty, french, english, image_id)
       VALUES (
         ${teacher.id}::uuid, ${w.year}, ${w.term}, ${w.topic},
-        ${w.difficulty}, ${w.french}, ${w.english}
+        ${w.difficulty}, ${w.french}, ${w.english}, ${imageId}
       )
       RETURNING id, year, term, topic, difficulty, french, english, image_id,
                 NULL::text AS image_ref, sort_order
@@ -102,9 +119,10 @@ export const upsertWordFn = createServerFn({ method: "POST" })
   });
 
 export const deleteWordFn = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string().uuid() }))
+  .validator(z.object({ id: z.string().min(1).max(80) }))
   .handler(async ({ data }) => {
     const teacher = await requireTeacher();
+    if (!isUuid(data.id)) return { ok: true as const };
     await sql`
       DELETE FROM words
       WHERE id = ${data.id}::uuid AND teacher_id = ${teacher.id}::uuid
