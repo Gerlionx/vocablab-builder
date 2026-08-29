@@ -4,7 +4,7 @@ import { rainbowPaint, type colorById } from "@/lib/team-colors";
 type Palette = ReturnType<typeof colorById>;
 
 const PILL_WIDTH = "min(15rem, 32vw)";
-const PILL_TYPE = "clamp(1.05rem, 2.2vmin, 1.7rem)";
+const PILL_TYPE = "clamp(1.35rem, 3vmin, 2.1rem)";
 
 export function PlayLeaderboard({
   teamsOn,
@@ -56,7 +56,7 @@ export function PlayLeaderboard({
       return (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30" aria-label="Scores">
           {left && left.score > 0 ? (
-            <div className="absolute left-3 top-12 sm:left-4 sm:top-14" style={{ width: PILL_WIDTH }}>
+            <div className="absolute left-3 top-16 sm:left-4 sm:top-14" style={{ width: PILL_WIDTH }}>
               <ScoreRow
                 label={left.color.label}
                 score={left.score}
@@ -70,7 +70,7 @@ export function PlayLeaderboard({
             </div>
           ) : null}
           {right && right.score > 0 ? (
-            <div className="absolute right-3 top-12 sm:right-4 sm:top-14" style={{ width: PILL_WIDTH }}>
+            <div className="absolute right-3 top-16 sm:right-4 sm:top-14" style={{ width: PILL_WIDTH }}>
               <ScoreRow
                 label={right.color.label}
                 score={right.score}

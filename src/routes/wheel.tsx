@@ -1562,13 +1562,14 @@ function WheelPage() {
       ) : null}
 
       <div
-        className={`flex h-full min-w-0 flex-col items-center bg-[radial-gradient(ellipse_at_center,oklch(0.97_0.02_220)_0%,var(--background)_70%)] transition-[margin,background] duration-500 ${
-          !started || panelOpen ? "lg:mr-[36rem]" : "lg:mr-0"
+        className={`flex h-full min-w-0 flex-col items-center overflow-hidden bg-[radial-gradient(ellipse_at_center,oklch(0.97_0.02_220)_0%,var(--background)_70%)] transition-[margin,background] duration-500 ${
+          !started || panelOpen ? "lg:mr-[32rem]" : "lg:mr-0"
         }`}
         style={
           {
-            ["--setup-shift"]: !started || panelOpen ? "36rem" : "0px",
-            ["--score-rail-width"]: "0px",
+            ["--setup-shift"]: !started || panelOpen ? "32rem" : "0px",
+            ["--score-rail-width"]:
+              showScoreRail && !teamCorners ? "min(15rem, 32vw)" : "0px",
             ...(scene === "question" || scene === "show"
               ? picked && !deskOpen
                 ? {
@@ -1581,14 +1582,17 @@ function WheelPage() {
       >
         <Link
           to="/create"
-          className="absolute left-4 top-4 z-20 text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground"
+          className="absolute left-4 top-4 z-20 rounded-lg px-2 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground hover:bg-muted/60 hover:text-foreground sm:text-[11px] sm:tracking-[0.2em]"
+          style={{ top: "max(1rem, env(safe-area-inset-top))" }}
         >
           &larr; Back
         </Link>
 
         <div
           className={`relative flex w-full min-h-0 flex-1 flex-col items-center justify-center self-stretch px-2 pt-1 ${
-            playing && onDisc ? "pb-24" : "pb-4"
+            playing && onDisc
+              ? "pb-[7.75rem] sm:pb-24"
+              : "pb-4"
           }`}
         >
           {showWheel ? (
@@ -1687,7 +1691,7 @@ function WheelPage() {
 
         {started && scene === "landed" && picked ? (
           <div
-            className={`absolute bottom-7 z-20 flex gap-4 ${
+            className={`vocablab-play-dock ${
               deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
             }`}
           >
@@ -1695,7 +1699,7 @@ function WheelPage() {
               type="button"
               onClick={skipLanded}
               disabled={deskOpen}
-              className="rounded-full bg-surface px-12 py-5 font-kids text-2xl font-semibold shadow-lg ring-1 ring-border disabled:opacity-40"
+              className="rounded-full bg-surface px-7 py-3.5 font-kids text-lg font-semibold shadow-lg ring-1 ring-border disabled:opacity-40 sm:px-12 sm:py-5 sm:text-2xl"
             >
               Skip
             </button>
@@ -1703,16 +1707,24 @@ function WheelPage() {
               type="button"
               onClick={playLanded}
               disabled={deskOpen}
-              className="rounded-full bg-primary px-12 py-5 font-kids text-2xl font-semibold text-primary-foreground shadow-lg disabled:opacity-40"
+              className="rounded-full bg-primary px-7 py-3.5 font-kids text-lg font-semibold text-primary-foreground shadow-lg disabled:opacity-40 sm:px-12 sm:py-5 sm:text-2xl"
             >
               Play
+            </button>
+            <button
+              type="button"
+              onClick={openSetup}
+              disabled={deskOpen}
+              className="vocablab-play-dock-setup rounded-full bg-secondary px-5 py-3.5 font-kids text-base font-semibold text-secondary-foreground shadow-md ring-1 ring-border"
+            >
+              Set up
             </button>
           </div>
         ) : null}
 
         {started && (scene === "wheel" || scene === "spinning") ? (
           <div
-            className={`absolute bottom-7 z-20 flex flex-col items-center gap-3 ${
+            className={`vocablab-play-dock ${
               deskOpen ? "vocablab-play-layer is-away" : "vocablab-play-layer"
             }`}
           >
@@ -1720,9 +1732,17 @@ function WheelPage() {
               type="button"
               onClick={spin}
               disabled={scene === "spinning" || deskOpen}
-              className="rounded-full bg-primary px-16 py-5 font-kids text-3xl font-semibold uppercase tracking-wide text-primary-foreground shadow-lg disabled:opacity-40"
+              className="vocablab-play-dock-spin rounded-full bg-primary px-10 py-4 font-kids text-2xl font-semibold uppercase tracking-wide text-primary-foreground shadow-lg disabled:opacity-40 sm:w-auto sm:px-16 sm:py-5 sm:text-3xl"
             >
               {scene === "spinning" ? "…" : "Spin"}
+            </button>
+            <button
+              type="button"
+              onClick={openSetup}
+              disabled={deskOpen || scene === "spinning"}
+              className="vocablab-play-dock-setup rounded-full bg-secondary px-5 py-3.5 font-kids text-base font-semibold text-secondary-foreground shadow-md ring-1 ring-border disabled:opacity-40"
+            >
+              Set up
             </button>
           </div>
         ) : null}
@@ -1733,7 +1753,18 @@ function WheelPage() {
           ref={tabRef}
           type="button"
           onClick={openSetup}
-          className="absolute bottom-7 right-0 z-[60] rounded-l-2xl bg-primary px-2 py-8 font-kids text-sm font-semibold tracking-wide text-primary-foreground shadow-lg"
+          className="absolute bottom-7 right-0 z-[60] hidden rounded-l-2xl bg-primary px-2 py-8 font-kids text-sm font-semibold tracking-wide text-primary-foreground shadow-lg sm:block"
+        >
+          Set up
+        </button>
+      ) : null}
+
+      {started && !panelOpen && scene !== "wheel" && scene !== "spinning" && scene !== "landed" ? (
+        <button
+          type="button"
+          onClick={openSetup}
+          className="absolute right-3 z-[60] rounded-full bg-primary px-4 py-2.5 font-kids text-sm font-semibold text-primary-foreground shadow-lg sm:hidden"
+          style={{ bottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}
         >
           Set up
         </button>
@@ -1742,7 +1773,7 @@ function WheelPage() {
       {!started || panelOpen ? (
         <aside
           ref={panelRef}
-          className="absolute inset-y-0 right-0 z-40 flex w-[min(36rem,100%)] flex-col overflow-y-auto border-l border-border bg-card shadow-2xl"
+          className="absolute inset-y-0 right-0 z-40 flex w-[min(32rem,_100%)] flex-col overflow-y-auto border-l border-border bg-card shadow-2xl"
         >
           <SetupPanel
             namesText={namesText}

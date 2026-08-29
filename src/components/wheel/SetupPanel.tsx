@@ -139,8 +139,8 @@ export function SetupPanel({
       {teamsOn ? (
         <>
           <div
-            className="grid min-h-64 flex-1 gap-2"
-            style={{ gridTemplateColumns: `repeat(${teamCount}, minmax(0, 1fr))` }}
+            className="vocablab-team-roster grid min-h-64 flex-1 gap-2"
+            style={{ ["--team-cols" as string]: String(teamCount) }}
           >
             {roster.slice(0, teamCount).map((names, i) => (
               <TeamColumn

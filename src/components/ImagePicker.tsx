@@ -46,7 +46,7 @@ export function ImagePicker({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
+              className="rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
             >
               {src ? "Change" : "Choose"}
             </button>
@@ -54,7 +54,7 @@ export function ImagePicker({
               <button
                 type="button"
                 onClick={() => onChange(undefined)}
-                className="rounded-full px-3 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-border hover:text-destructive"
+                className="rounded-full px-4 py-2.5 text-sm font-semibold text-muted-foreground ring-1 ring-border hover:text-destructive"
               >
                 Remove
               </button>

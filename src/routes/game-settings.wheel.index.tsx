@@ -474,7 +474,7 @@ function WheelLessonsPage() {
               <button
                 type="button"
                 onClick={clearFilters}
-                className="rounded-full px-3 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-border transition hover:bg-background hover:text-foreground"
+                className="rounded-full px-4 py-2.5 text-sm font-semibold text-muted-foreground ring-1 ring-border transition hover:bg-background hover:text-foreground"
               >
                 Clear filters
               </button>
@@ -744,7 +744,7 @@ function WheelLessonsPage() {
           </div>
         </section>
 
-        <aside className="flex h-full min-h-[32rem] flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border lg:min-h-full">
+        <aside className="flex h-full min-h-[18rem] flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border sm:min-h-[24rem] lg:min-h-full">
           <button
             type="button"
             onClick={() => void openLessonPreview()}
@@ -806,7 +806,7 @@ function WheelLessonsPage() {
                         e.stopPropagation();
                         excludeWord(word.id);
                       }}
-                      className="absolute right-2 top-2 rounded-full p-1.5 text-muted-foreground/0 transition group-hover:bg-background/90 group-hover:text-muted-foreground group-hover:ring-1 group-hover:ring-border hover:!text-destructive focus:outline-none focus-visible:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
+                      className="vocablab-touch-actions absolute right-2 top-2 rounded-full p-2.5 text-muted-foreground ring-1 ring-border/60 bg-background/90 transition hover:!text-destructive focus:outline-none focus-visible:text-destructive focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <Trash2 className="size-3.5" strokeWidth={2} />
                     </button>

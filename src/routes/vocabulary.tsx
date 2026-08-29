@@ -281,29 +281,29 @@ function VocabularyPage() {
 
   return (
     <AppChrome>
-      <main className="mx-auto max-w-3xl px-6 pb-32 pt-8">
+      <main className="vocablab-vocab-page mx-auto max-w-3xl px-4 pb-[calc(7.5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:pb-32 sm:pt-8">
         <Link
           to="/home"
-          className="mb-3 inline-block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-3 inline-flex min-h-11 items-center text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
         >
           &larr; Back to home
         </Link>
 
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <h1 className="font-kids text-4xl font-semibold tracking-tight text-foreground">
+        <header className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <h1 className="font-kids text-[2rem] font-semibold tracking-tight text-foreground sm:text-4xl">
             Vocabulary
           </h1>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
             <GhostButton
               onClick={() => {
                 downloadVocabBackup(words);
                 flash("Vocabulary backed up");
               }}
             >
-              Backup vocabulary
+              Backup
             </GhostButton>
             <GhostButton onClick={() => fileRef.current?.click()}>
-              Restore / load vocabulary
+              Restore / load
             </GhostButton>
             <input
               ref={fileRef}
@@ -326,15 +326,17 @@ function VocabularyPage() {
         ) : null}
 
         {/* Filters */}
-        <div className="sticky top-0 z-20 -mx-6 mt-8 bg-background/95 px-6 py-4 backdrop-blur-sm">
-          <div className="flex flex-wrap items-center gap-2 border-b border-line pb-4">
-            <Select label="Year" value={year} onChange={setYear} options={years} />
-            <Select
-              label="Difficulty"
-              value={difficulty}
-              onChange={setDifficulty}
-              options={[ALL, ...DIFFICULTIES]}
-            />
+        <div className="vocablab-vocab-sticky sticky top-0 z-20 -mx-4 mt-6 bg-background/95 px-4 py-3 backdrop-blur-sm sm:-mx-6 sm:mt-8 sm:px-6 sm:py-4">
+          <div className="flex flex-col gap-3 border-b border-line pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2 sm:pb-4">
+            <div className="grid grid-cols-2 gap-2 sm:contents">
+              <Select label="Year" value={year} onChange={setYear} options={years} />
+              <Select
+                label="Difficulty"
+                value={difficulty}
+                onChange={setDifficulty}
+                options={[ALL, ...DIFFICULTIES]}
+              />
+            </div>
             <button
               type="button"
               onClick={() =>
@@ -347,62 +349,64 @@ function VocabularyPage() {
                   english: "",
                 })
               }
-              className="ml-auto rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98]"
+              className="hidden min-h-11 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 active:scale-[0.98] sm:ml-auto sm:inline-flex sm:items-center"
             >
               Add word
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-3 text-xs text-muted-foreground">
-            <span>
-              <span className="font-semibold text-foreground">Bold</span> = Low
-            </span>
-            <span>Regular = Medium</span>
-            <span>
-              <span className="text-foreground">*</span> = High
-            </span>
-            <span className="ml-auto flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 pt-3 text-xs text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span>
+                <span className="font-semibold text-foreground">Bold</span> = Low
+              </span>
+              <span>Regular = Medium</span>
+              <span>
+                <span className="text-foreground">*</span> = High
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1 sm:ml-auto">
               <button
                 type="button"
                 onClick={() => setManage("year")}
-                className="underline-offset-4 hover:text-foreground hover:underline"
+                className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
               >
                 Years
               </button>
               <button
                 type="button"
                 onClick={() => setManage("term")}
-                className="underline-offset-4 hover:text-foreground hover:underline"
+                className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
               >
                 Terms
               </button>
               <button
                 type="button"
                 onClick={() => setManage("topic")}
-                className="underline-offset-4 hover:text-foreground hover:underline"
+                className="min-h-10 rounded-lg px-3 py-2 font-medium underline-offset-4 hover:bg-muted hover:text-foreground"
               >
                 Topics
               </button>
-            </span>
+            </div>
           </div>
         </div>
 
         {selectedTerm ? (
-          <div className="mt-8">
+          <div className="mt-6 sm:mt-8">
             <button
               type="button"
               onClick={() => setSelectedTerm(null)}
-              className="mb-6 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="mb-4 inline-flex min-h-11 items-center text-sm font-medium text-muted-foreground transition-colors hover:text-foreground sm:mb-6"
             >
               &larr; All terms
             </button>
 
-            <article className="rounded-3xl bg-surface/80 px-8 py-10 shadow-sm ring-1 ring-border sm:px-12">
-              <header className="border-b border-line pb-6 text-center">
+            <article className="rounded-2xl bg-surface/80 px-4 py-6 shadow-sm ring-1 ring-border sm:rounded-3xl sm:px-12 sm:py-10">
+              <header className="border-b border-line pb-5 text-center sm:pb-6">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
                   {year}
                 </p>
-                <h2 className="mt-2 font-serif text-3xl font-medium tracking-tight">
+                <h2 className="mt-2 font-serif text-2xl font-medium tracking-tight sm:text-3xl">
                   {selectedTerm}
                 </h2>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -416,13 +420,13 @@ function VocabularyPage() {
                   No words match this filter.
                 </p>
               ) : (
-                <div className="mt-10 space-y-10">
+                <div className="mt-6 space-y-8 sm:mt-10 sm:space-y-10">
                   {bookletTopics.map(({ topic: topicName, words: list }) => (
                     <section key={topicName}>
-                      <h3 className="border-b border-line pb-2 font-serif text-xl font-semibold tracking-tight">
+                      <h3 className="border-b border-line pb-2 font-serif text-lg font-semibold tracking-tight sm:text-xl">
                         {topicName}
                       </h3>
-                      <ul className="mt-4">
+                      <ul className="mt-2 sm:mt-4">
                         {list.map((item) => (
                           <VocabRow
                             key={item.id}
@@ -441,7 +445,7 @@ function VocabularyPage() {
             </article>
           </div>
         ) : termCards.length === 0 ? (
-          <div className="mt-20 rounded-3xl bg-surface/60 px-8 py-16 text-center ring-1 ring-border">
+          <div className="mt-12 rounded-2xl bg-surface/60 px-6 py-12 text-center ring-1 ring-border sm:mt-20 sm:rounded-3xl sm:px-8 sm:py-16">
             <p className="text-lg font-medium">Nothing here yet</p>
             <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
               No words match these filters. Try another difficulty, or add your
@@ -449,18 +453,18 @@ function VocabularyPage() {
             </p>
           </div>
         ) : (
-          <div className="mt-10 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-4">
             {termCards.map(({ term: termName, count }) => (
               <button
                 key={termName}
                 type="button"
                 onClick={() => setSelectedTerm(termName)}
-                className="group rounded-2xl border border-line bg-surface/60 px-6 py-8 text-left transition-colors hover:border-foreground/20 hover:bg-surface active:scale-[0.99]"
+                className="group min-h-[5.5rem] rounded-2xl border border-line bg-surface/60 px-5 py-6 text-left transition-colors hover:border-foreground/20 hover:bg-surface active:scale-[0.99] sm:px-6 sm:py-8"
               >
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                   {year}
                 </p>
-                <p className="mt-2 text-2xl font-medium tracking-tight group-hover:text-foreground">
+                <p className="mt-2 text-xl font-medium tracking-tight group-hover:text-foreground sm:text-2xl">
                   {termName}
                 </p>
                 <p className="mt-2 text-sm text-muted-foreground">
@@ -470,6 +474,23 @@ function VocabularyPage() {
             ))}
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={() =>
+            setDraft({
+              year,
+              term: selectedTerm ?? terms[0] ?? "Term 1",
+              topic: topics[0] ?? "Greetings",
+              difficulty: "Medium",
+              french: "",
+              english: "",
+            })
+          }
+          className="vocablab-vocab-fab sm:hidden"
+        >
+          Add word
+        </button>
       </main>
 
       {/* Add / edit word */}
@@ -482,7 +503,7 @@ function VocabularyPage() {
               saveDraft(draft);
             }}
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Year">
                 <NativeSelect
                   value={draft.year}
@@ -517,17 +538,21 @@ function VocabularyPage() {
             <Field label="French">
               <input
                 required
+                autoComplete="off"
+                enterKeyHint="next"
                 value={draft.french}
                 onChange={(e) => setDraft({ ...draft, french: e.target.value })}
-                className="w-full rounded-xl bg-surface px-4 py-2.5 font-serif text-base italic ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-xl bg-surface px-4 py-3 font-serif text-base italic ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
             <Field label="English">
               <input
                 required
+                autoComplete="off"
+                enterKeyHint="done"
                 value={draft.english}
                 onChange={(e) => setDraft({ ...draft, english: e.target.value })}
-                className="w-full rounded-xl bg-surface px-4 py-2.5 text-base ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full rounded-xl bg-surface px-4 py-3 text-base ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </Field>
             <Field label="Image">
@@ -536,11 +561,11 @@ function VocabularyPage() {
                 onChange={(image) => setDraft({ ...draft, image })}
               />
             </Field>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
               <GhostButton onClick={() => setDraft(null)}>Cancel</GhostButton>
               <button
                 type="submit"
-                className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground"
+                className="min-h-12 rounded-xl bg-primary px-5 py-3 text-base font-medium text-primary-foreground sm:min-h-11 sm:py-2 sm:text-sm"
               >
                 Save word
               </button>
@@ -571,7 +596,7 @@ function VocabularyPage() {
               (name) => (
                 <li
                   key={name}
-                  className="flex items-center justify-between gap-3 border-b border-line py-2.5 text-sm"
+                  className="flex items-center justify-between gap-3 border-b border-line py-3 text-sm"
                 >
                   {editingName === name ? (
                     <input
@@ -591,12 +616,12 @@ function VocabularyPage() {
                           setEditNameValue("");
                         }
                       }}
-                      className="min-w-0 flex-1 rounded-lg bg-surface px-3 py-1.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="min-h-11 min-w-0 flex-1 rounded-lg bg-surface px-3 py-2 text-base ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring sm:text-sm"
                     />
                   ) : (
-                    <span className="min-w-0 flex-1 truncate">{name}</span>
+                    <span className="min-w-0 flex-1 truncate py-1">{name}</span>
                   )}
-                  <div className="flex shrink-0 gap-3">
+                  <div className="flex shrink-0 gap-1">
                     {editingName === name ? (
                       <>
                         <button
@@ -607,7 +632,7 @@ function VocabularyPage() {
                               setEditNameValue("");
                             }
                           }}
-                          className="text-xs font-medium text-foreground hover:opacity-80"
+                          className="min-h-11 rounded-lg px-3 text-sm font-medium text-foreground hover:bg-muted"
                         >
                           Save
                         </button>
@@ -617,7 +642,7 @@ function VocabularyPage() {
                             setEditingName(null);
                             setEditNameValue("");
                           }}
-                          className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                          className="min-h-11 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                         >
                           Cancel
                         </button>
@@ -629,7 +654,7 @@ function VocabularyPage() {
                           setEditingName(name);
                           setEditNameValue(name);
                         }}
-                        className="text-xs font-medium text-muted-foreground hover:text-foreground"
+                        className="min-h-11 rounded-lg px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                       >
                         Edit
                       </button>
@@ -657,7 +682,7 @@ function VocabularyPage() {
                           setEditNameValue("");
                         }
                       }}
-                      className="text-xs font-medium text-destructive/70 hover:text-destructive"
+                      className="min-h-11 rounded-lg px-3 text-sm font-medium text-destructive/80 hover:bg-destructive/10 hover:text-destructive"
                     >
                       Delete
                     </button>
@@ -758,44 +783,46 @@ function VocabRow({
   onDelete: () => void;
 }) {
   return (
-    <li className="group relative border-b border-line last:border-b-0">
-      <button
-        type="button"
-        onClick={onEdit}
-        className="flex w-full items-start gap-4 py-3 pr-12 text-left transition hover:bg-muted/40 focus:outline-none focus-visible:bg-muted/50"
-      >
-        {resolveImageSrc(item.image) ? (
-          <img
-            src={resolveImageSrc(item.image)}
-            alt=""
-            className="mt-0.5 h-16 w-16 shrink-0 rounded-lg object-contain ring-1 ring-border"
-          />
-        ) : null}
-        <div
-          className={`flex min-w-0 flex-1 flex-wrap items-baseline gap-x-6 gap-y-1 ${
-            item.difficulty === "Low"
-              ? "font-semibold text-foreground"
-              : "font-normal text-muted-foreground"
-          }`}
+    <li className="border-b border-line last:border-b-0">
+      <div className="flex items-stretch gap-1 py-1 sm:gap-2">
+        <button
+          type="button"
+          onClick={onEdit}
+          className="flex min-h-[3.75rem] min-w-0 flex-1 items-start gap-3 rounded-xl px-1 py-2.5 text-left transition hover:bg-muted/40 focus:outline-none focus-visible:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring sm:gap-4 sm:px-2"
         >
-          <span className="font-serif text-lg italic">
-            {item.difficulty === "High" ? "* " : ""}
-            {item.french}
-          </span>
-          <span className="text-base">{item.english}</span>
-        </div>
-      </button>
-      <button
-        type="button"
-        aria-label={`Delete ${item.french}`}
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="absolute right-1 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full text-destructive/70 opacity-0 transition hover:bg-destructive/10 hover:text-destructive focus:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:opacity-100 group-focus-within:opacity-100"
-      >
-        <TrashIcon />
-      </button>
+          {resolveImageSrc(item.image) ? (
+            <img
+              src={resolveImageSrc(item.image)}
+              alt=""
+              className="mt-0.5 h-14 w-14 shrink-0 rounded-lg object-contain ring-1 ring-border sm:h-16 sm:w-16"
+            />
+          ) : null}
+          <div
+            className={`flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-6 sm:gap-y-1 ${
+              item.difficulty === "Low"
+                ? "font-semibold text-foreground"
+                : "font-normal text-muted-foreground"
+            }`}
+          >
+            <span className="font-serif text-base italic sm:text-lg">
+              {item.difficulty === "High" ? "* " : ""}
+              {item.french}
+            </span>
+            <span className="text-sm sm:text-base">{item.english}</span>
+          </div>
+        </button>
+        <button
+          type="button"
+          aria-label={`Delete ${item.french}`}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          className="my-auto mr-0.5 flex size-11 shrink-0 items-center justify-center rounded-full text-destructive/80 transition hover:bg-destructive/10 hover:text-destructive focus:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:size-10"
+        >
+          <TrashIcon />
+        </button>
+      </div>
     </li>
   );
 }
@@ -825,7 +852,7 @@ function GhostButton({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-lg bg-surface px-4 py-2 text-sm font-medium text-foreground ring-1 ring-border transition-colors hover:bg-accent active:scale-[0.98]"
+      className="min-h-11 w-full rounded-xl bg-surface px-4 py-2.5 text-sm font-medium text-foreground ring-1 ring-border transition-colors hover:bg-accent active:scale-[0.98] sm:w-auto"
     >
       {children}
     </button>
@@ -844,12 +871,12 @@ function Select({
   options: string[];
 }) {
   return (
-    <label className="relative inline-flex min-w-[9.5rem] cursor-pointer items-stretch overflow-hidden rounded-2xl bg-card ring-1 ring-border transition hover:ring-primary/40 focus-within:ring-2 focus-within:ring-ring">
-      <span className="pointer-events-none flex flex-col justify-center py-2.5 pl-3.5 pr-1">
+    <label className="relative inline-flex min-h-12 w-full min-w-0 cursor-pointer items-stretch overflow-hidden rounded-2xl bg-card ring-1 ring-border transition hover:ring-primary/40 focus-within:ring-2 focus-within:ring-ring sm:min-h-0 sm:min-w-[9.5rem] sm:w-auto">
+      <span className="pointer-events-none flex min-w-0 flex-1 flex-col justify-center py-2.5 pl-3.5 pr-1">
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {label}
         </span>
-        <span className="mt-0.5 text-sm font-semibold text-foreground">{value}</span>
+        <span className="mt-0.5 truncate text-sm font-semibold text-foreground">{value}</span>
       </span>
       <select
         value={value}
@@ -885,7 +912,7 @@ function NativeSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-xl bg-surface px-3 py-2.5 text-sm ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring"
+      className="min-h-12 w-full rounded-xl bg-surface px-3 py-3 text-base ring-1 ring-input focus:outline-none focus:ring-2 focus:ring-ring sm:min-h-0 sm:py-2.5 sm:text-sm"
     >
       {options.map((o) => (
         <option key={o} value={o}>
@@ -934,17 +961,17 @@ function Modal({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 px-6 backdrop-blur-sm">
+    <div className="vocablab-modal-shell fixed inset-0 z-50 grid place-items-end bg-background/80 px-0 backdrop-blur-sm sm:place-items-center sm:px-6">
       <div
         ref={panelRef}
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-popover p-8 shadow-2xl ring-1 ring-border"
+        className="vocablab-modal-panel max-h-[92dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-popover p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl ring-1 ring-border sm:max-h-[85vh] sm:rounded-3xl sm:p-8 sm:pb-8"
       >
-        <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="mb-5 flex items-start justify-between gap-4 sm:mb-6">
           <h2 className="text-xl font-medium tracking-tight">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Close
           </button>

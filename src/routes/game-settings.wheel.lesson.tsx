@@ -281,7 +281,7 @@ function LessonHandoutPage() {
                   ) : null}
                 </div>
                 <WordThumb src={word.image} className="mr-1" />
-                <div className="print:hidden absolute right-2 top-2 flex gap-1 opacity-0 transition group-hover:opacity-100">
+                <div className="vocablab-touch-actions print:hidden absolute right-2 top-2 flex gap-1 transition">
                   <IconBtn label="Move up" onClick={() => move(word.id, -1)} disabled={i === 0}>
                     <ArrowUp className="size-3.5" />
                   </IconBtn>
@@ -330,7 +330,7 @@ function LessonHandoutPage() {
                   type="button"
                   aria-label="Remove"
                   onClick={() => exclude(word.id)}
-                  className="print:hidden rounded-full p-1 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-destructive"
+                  className="vocablab-touch-actions print:hidden rounded-full p-2 text-muted-foreground transition hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
                 </button>
@@ -450,7 +450,7 @@ function WordRow({
         </p>
       </div>
       <WordThumb src={word.image} />
-      <div className="print:hidden flex shrink-0 flex-col gap-0.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+      <div className="vocablab-touch-actions print:hidden flex shrink-0 flex-col gap-0.5 transition">
         <IconBtn label="Move up" onClick={onUp} disabled={!canUp}>
           <ArrowUp className="size-3.5" />
         </IconBtn>

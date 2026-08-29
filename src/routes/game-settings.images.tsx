@@ -215,7 +215,7 @@ function ImagesPage() {
                   <button
                     type="button"
                     onClick={() => setAssigning(img)}
-                    className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground"
+                    className="rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
                   >
                     {linked.length ? "Change word" : "Assign to word"}
                   </button>
@@ -224,14 +224,14 @@ function ImagesPage() {
                       <button
                         type="button"
                         onClick={() => setEditing(img)}
-                        className="rounded-full px-3 py-1 text-xs font-semibold text-foreground ring-1 ring-border hover:bg-muted"
+                        className="rounded-full px-4 py-2.5 text-sm font-semibold text-foreground ring-1 ring-border hover:bg-muted"
                       >
                         Rename
                       </button>
                       <button
                         type="button"
                         onClick={() => remove(img)}
-                        className="rounded-full px-3 py-1 text-xs font-semibold text-destructive ring-1 ring-border hover:bg-destructive/10"
+                        className="rounded-full px-4 py-2.5 text-sm font-semibold text-destructive ring-1 ring-border hover:bg-destructive/10"
                       >
                         Delete
                       </button>

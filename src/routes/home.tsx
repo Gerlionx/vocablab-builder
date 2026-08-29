@@ -24,7 +24,7 @@ export const Route = createFileRoute("/home")({
 function HomePage() {
   return (
     <AppChrome>
-      <main className="flex min-h-[calc(100vh-88px)] flex-col items-center justify-center px-6">
+      <main className="flex min-h-[calc(100vh-5.5rem)] min-h-[calc(100dvh-5.5rem)] flex-col items-center justify-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <h1 className="sr-only">Vocablab home</h1>
         <Link to="/create" className="vocablab-activity-orb" aria-label="Open Activity">
           <span className="vocablab-activity-orb-glow" aria-hidden="true" />

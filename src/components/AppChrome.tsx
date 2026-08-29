@@ -48,7 +48,10 @@ export function TopBar() {
   }, [open]);
 
   return (
-    <nav className="flex items-center justify-between px-6 py-6 sm:px-10">
+    <nav
+      className="flex items-center justify-between gap-3 px-4 py-4 sm:px-10 sm:py-6"
+      style={{ paddingTop: "max(1rem, env(safe-area-inset-top, 0px))" }}
+    >
       <Link
         to="/home"
         className="rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
