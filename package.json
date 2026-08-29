@@ -11,7 +11,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "node --experimental-strip-types --import ./scripts/register-node-test-aliases.mjs --test src/lib/wheel-answer-reveal.test.ts src/lib/wheel-math.test.ts src/lib/wheel-scoring.test.ts src/lib/wheel-score-race.test.ts src/lib/wheel-turn-flow.test.ts src/lib/wheel-prompt.test.ts src/lib/vocab-filter.test.ts src/lib/vocab-backup.test.ts src/lib/wheel-time-bank.test.ts src/lib/wheel-play-mode.test.ts src/lib/wheel-modes.test.ts src/lib/parse-names.test.ts src/lib/teacher-session.test.ts src/lib/game-settings.test.ts src/lib/wheel-lessons.test.ts src/lib/word-patches.test.ts src/lib/team-colors.test.ts src/lib/vocab-data.test.ts src/lib/wheel-game-sim.test.ts"
+    "test": "node --experimental-strip-types --import ./scripts/register-node-test-aliases.mjs --test src/lib/wheel-answer-reveal.test.ts src/lib/wheel-math.test.ts src/lib/wheel-scoring.test.ts src/lib/wheel-score-race.test.ts src/lib/wheel-turn-flow.test.ts src/lib/wheel-prompt.test.ts src/lib/vocab-filter.test.ts src/lib/vocab-backup.test.ts src/lib/wheel-time-bank.test.ts src/lib/wheel-play-mode.test.ts src/lib/wheel-modes.test.ts src/lib/parse-names.test.ts src/lib/teacher-session.test.ts src/lib/game-settings.test.ts src/lib/wheel-lessons.test.ts src/lib/word-patches.test.ts src/lib/word-image.test.ts src/lib/team-colors.test.ts src/lib/vocab-data.test.ts src/lib/wheel-game-sim.test.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"

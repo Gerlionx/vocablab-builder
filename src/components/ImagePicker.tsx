@@ -5,6 +5,7 @@ import {
   imageLabel,
   listLibraryImages,
   resolveImageSrc,
+  syncLibraryFromServer,
   uploadLibraryImage,
   type LibraryImage,
 } from "@/lib/image-library";
@@ -19,8 +20,8 @@ export function ImagePicker({
 }) {
   const [open, setOpen] = useState(false);
   const ref = coerceToLibraryRef(value);
-  const src = resolveImageSrc(ref);
-  const label = imageLabel(ref);
+  const src = resolveImageSrc(ref) ?? resolveImageSrc(value);
+  const label = imageLabel(ref) ?? imageLabel(value);
 
   return (
     <div className="space-y-2">
@@ -65,10 +66,14 @@ export function ImagePicker({
 
       {open ? (
         <LibraryModal
-          selected={ref}
+          selected={ref ?? value}
           onClose={() => setOpen(false)}
           onPick={(img) => {
-            onChange(img.id);
+            onChange(
+              img.kind === "upload" && img.src.startsWith("/api/uploads/")
+                ? img.src
+                : img.id,
+            );
             setOpen(false);
           }}
         />
@@ -94,6 +99,7 @@ function LibraryModal({
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    void syncLibraryFromServer().then(setItems);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -174,7 +180,10 @@ function LibraryModal({
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {items.map((img) => {
-              const on = selected === img.id || selected === img.src;
+              const on =
+                selected === img.id ||
+                selected === img.src ||
+                (selected != null && resolveImageSrc(selected) === img.src);
               return (
                 <li key={img.id}>
                   <button

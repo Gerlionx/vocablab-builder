@@ -3,6 +3,7 @@ import { z } from "zod";
 import { sql } from "@/backend/db";
 import { requireTeacher } from "@/backend/session";
 import type { Difficulty, Word } from "@/lib/vocab-data";
+import { formatWordImage, parseWordImage } from "@/lib/word-image";
 
 type WordRow = {
   id: string;
@@ -18,7 +19,7 @@ type WordRow = {
 };
 
 function rowToWord(row: WordRow): Word {
-  const image = row.image_id ? `/api/uploads/${row.image_id}` : undefined;
+  const image = formatWordImage(row.image_id, row.image_ref);
   return {
     id: row.id,
     year: row.year,
@@ -41,12 +42,6 @@ const wordInput = z.object({
   image: z.string().optional().nullable(),
 });
 
-function parseUploadImageId(image?: string | null): string | null {
-  if (!image) return null;
-  const match = String(image).match(/\/api\/uploads\/([0-9a-f-]{36})/i);
-  return match?.[1] ?? null;
-}
-
 function isUuid(id: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     id,
@@ -56,13 +51,11 @@ function isUuid(id: string) {
 export const listWordsFn = createServerFn({ method: "GET" }).handler(async () => {
   const teacher = await requireTeacher();
   const rows = await sql<WordRow[]>`
-    SELECT id, year, term, topic, difficulty, french, english, image_id,
-           NULL::text AS image_ref, sort_order
+    SELECT id, year, term, topic, difficulty, french, english, image_id, image_ref, sort_order
     FROM words
     WHERE teacher_id = ${teacher.id}::uuid
     ORDER BY year, term, topic, sort_order, french
   `;
-  // Prefer image_id URL; optional image_ref column may not exist yet.
   return rows.map((row) => rowToWord(row));
 });
 
@@ -76,7 +69,7 @@ export const upsertWordFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const teacher = await requireTeacher();
     const w = data.word;
-    const imageId = parseUploadImageId(w.image);
+    const { imageId, imageRef } = parseWordImage(w.image);
     const id = data.id && isUuid(data.id) ? data.id : undefined;
     if (id) {
       const rows = await sql<WordRow[]>`
@@ -88,32 +81,32 @@ export const upsertWordFn = createServerFn({ method: "POST" })
           french = ${w.french},
           english = ${w.english},
           image_id = ${imageId},
+          image_ref = ${imageRef},
           updated_at = now()
         WHERE id = ${id}::uuid AND teacher_id = ${teacher.id}::uuid
-        RETURNING id, year, term, topic, difficulty, french, english, image_id,
-                  NULL::text AS image_ref, sort_order
+        RETURNING id, year, term, topic, difficulty, french, english, image_id, image_ref, sort_order
       `;
       if (rows[0]) return rowToWord(rows[0]);
       const inserted = await sql<WordRow[]>`
         INSERT INTO words (
-          id, teacher_id, year, term, topic, difficulty, french, english, image_id
+          id, teacher_id, year, term, topic, difficulty, french, english, image_id, image_ref
         ) VALUES (
           ${id}::uuid, ${teacher.id}::uuid, ${w.year}, ${w.term}, ${w.topic},
-          ${w.difficulty}, ${w.french}, ${w.english}, ${imageId}
+          ${w.difficulty}, ${w.french}, ${w.english}, ${imageId}, ${imageRef}
         )
-        RETURNING id, year, term, topic, difficulty, french, english, image_id,
-                  NULL::text AS image_ref, sort_order
+        RETURNING id, year, term, topic, difficulty, french, english, image_id, image_ref, sort_order
       `;
       return rowToWord(inserted[0]!);
     }
     const rows = await sql<WordRow[]>`
-      INSERT INTO words (teacher_id, year, term, topic, difficulty, french, english, image_id)
+      INSERT INTO words (
+        teacher_id, year, term, topic, difficulty, french, english, image_id, image_ref
+      )
       VALUES (
         ${teacher.id}::uuid, ${w.year}, ${w.term}, ${w.topic},
-        ${w.difficulty}, ${w.french}, ${w.english}, ${imageId}
+        ${w.difficulty}, ${w.french}, ${w.english}, ${imageId}, ${imageRef}
       )
-      RETURNING id, year, term, topic, difficulty, french, english, image_id,
-                NULL::text AS image_ref, sort_order
+      RETURNING id, year, term, topic, difficulty, french, english, image_id, image_ref, sort_order
     `;
     return rowToWord(rows[0]!);
   });
@@ -142,11 +135,16 @@ export const importSeedWordsFn = createServerFn({ method: "POST" })
     }
     let imported = 0;
     for (const [i, w] of data.words.entries()) {
+      const { imageId, imageRef } = parseWordImage(w.image);
       await sql`
-        INSERT INTO words (teacher_id, year, term, topic, difficulty, french, english, sort_order)
+        INSERT INTO words (
+          teacher_id, year, term, topic, difficulty, french, english,
+          image_id, image_ref, sort_order
+        )
         VALUES (
           ${teacher.id}::uuid, ${w.year}, ${w.term}, ${w.topic},
-          ${w.difficulty}, ${w.french}, ${w.english}, ${i}
+          ${w.difficulty}, ${w.french}, ${w.english},
+          ${imageId}, ${imageRef}, ${i}
         )
       `;
       imported += 1;

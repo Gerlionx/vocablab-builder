@@ -7,12 +7,13 @@ import {
   deleteLibraryImage,
   listLibraryImages,
   renameLibraryImage,
+  syncLibraryFromServer,
   uploadLibraryImage,
+  wordImageValue,
   type LibraryImage,
 } from "@/lib/image-library";
 import { SEED_WORDS, type Word } from "@/lib/vocab-data";
-import { loadPersistedWordBank } from "@/lib/vocab-backup";
-import { applyWordPatches, loadWordPatches, saveWordPatch } from "@/lib/word-patches";
+import { loadPersistedWordBank, savePersistedWordBank } from "@/lib/vocab-backup";
 
 export const Route = createFileRoute("/game-settings/images")({
   head: () => ({
@@ -28,7 +29,14 @@ export const Route = createFileRoute("/game-settings/images")({
 });
 
 function wordsLinkedToImage(img: LibraryImage, words: readonly Word[]): Word[] {
-  return words.filter((w) => w.image === img.id || w.image === img.src);
+  const value = wordImageValue(img);
+  return words.filter(
+    (w) =>
+      w.image === img.id ||
+      w.image === img.src ||
+      w.image === value ||
+      (img.src.startsWith("/api/uploads/") && w.image === img.src),
+  );
 }
 
 function ImagesPage() {
@@ -39,7 +47,6 @@ function ImagesPage() {
   const [editing, setEditing] = useState<LibraryImage | null>(null);
   const [assigning, setAssigning] = useState<LibraryImage | null>(null);
   const [pendingDelete, setPendingDelete] = useState<LibraryImage | null>(null);
-  const [patches, setPatches] = useState(() => loadWordPatches());
   const [bankWords, setBankWords] = useState<Word[]>(
     () => loadPersistedWordBank() ?? SEED_WORDS,
   );
@@ -48,22 +55,24 @@ function ImagesPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void listWordsFn()
-      .then((remote) => {
-        if (!cancelled && remote.length) setBankWords(remote);
-      })
-      .catch(() => {
-        /* offline — keep local bank */
-      });
+    void (async () => {
+      const [library, remote] = await Promise.all([
+        syncLibraryFromServer(),
+        listWordsFn().catch(() => [] as Word[]),
+      ]);
+      if (cancelled) return;
+      setItems(library);
+      if (remote.length) {
+        setBankWords(remote);
+        savePersistedWordBank(remote);
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const words = useMemo(
-    () => applyWordPatches(bankWords.length ? bankWords : SEED_WORDS, patches),
-    [bankWords, patches],
-  );
+  const words = bankWords.length ? bankWords : SEED_WORDS;
 
   const linkedByImageId = useMemo(() => {
     const map = new Map<string, Word[]>();
@@ -73,9 +82,8 @@ function ImagesPage() {
     return map;
   }, [items, words]);
 
-  function refresh() {
+  function refreshLibrary() {
     setItems(listLibraryImages());
-    setPatches(loadWordPatches());
   }
 
   function flash(msg: string) {
@@ -89,7 +97,7 @@ function ImagesPage() {
     setError(null);
     try {
       await uploadLibraryImage(file);
-      refresh();
+      refreshLibrary();
       flash("Image added to your library");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -101,7 +109,7 @@ function ImagesPage() {
 
   function remove(img: LibraryImage) {
     if (img.kind === "builtin") {
-      setError("Starter images stay in the pack — you can still assign them to words.");
+      setError("Starter images stay in the pack — you can unlink them from words instead.");
       return;
     }
     setPendingDelete(img);
@@ -111,35 +119,20 @@ function ImagesPage() {
     ? (linkedByImageId.get(pendingDelete.id) ?? wordsLinkedToImage(pendingDelete, words))
     : [];
 
-  function confirmRemove() {
+  async function confirmRemove() {
     const img = pendingDelete;
     setPendingDelete(null);
     if (!img || img.kind === "builtin") return;
     const linked = linkedByImageId.get(img.id) ?? wordsLinkedToImage(img, words);
     for (const word of linked) {
-      saveWordPatch(word.id, { image: "" });
-      void upsertWordFn({
-        data: {
-          id: word.id,
-          word: {
-            year: word.year,
-            term: word.term,
-            topic: word.topic,
-            difficulty: word.difficulty,
-            french: word.french,
-            english: word.english,
-            image: null,
-          },
-        },
-      }).catch(() => null);
+      await persistWordImage(word, null).catch(() => null);
     }
-    deleteLibraryImage(img.id);
-    setBankWords((prev) =>
-      prev.map((w) =>
-        linked.some((l) => l.id === w.id) ? { ...w, image: undefined } : w,
-      ),
-    );
-    refresh();
+    const ok = await deleteLibraryImage(img.id);
+    if (!ok) {
+      setError("Could not delete that image. Try again while signed in.");
+      return;
+    }
+    refreshLibrary();
     flash(
       linked.length
         ? `Image removed · unlinked from ${linked.length} word${linked.length === 1 ? "" : "s"}`
@@ -147,22 +140,67 @@ function ImagesPage() {
     );
   }
 
-  function saveTitle(img: LibraryImage, title: string) {
+  async function saveTitle(img: LibraryImage, title: string) {
     if (img.kind === "builtin") {
       setEditing(null);
       return;
     }
-    renameLibraryImage(img.id, title);
-    refresh();
+    const updated = await renameLibraryImage(img.id, title);
+    refreshLibrary();
     setEditing(null);
-    flash("Name updated");
+    flash(updated ? "Name updated" : "Could not rename image");
   }
 
-  function assignToWord(img: LibraryImage, word: Word) {
-    saveWordPatch(word.id, { image: img.id });
-    refresh();
-    setAssigning(null);
-    flash(`Assigned “${img.title}” to ${word.french}`);
+  async function persistWordImage(word: Word, image: string | null) {
+    const remote = await upsertWordFn({
+      data: {
+        id: word.id,
+        word: {
+          year: word.year,
+          term: word.term,
+          topic: word.topic,
+          difficulty: word.difficulty,
+          french: word.french,
+          english: word.english,
+          image,
+        },
+      },
+    });
+    setBankWords((prev) => {
+      const next = prev.map((w) => (w.id === word.id || w.id === remote.id ? remote : w));
+      savePersistedWordBank(next);
+      return next;
+    });
+    return remote;
+  }
+
+  async function assignToWord(img: LibraryImage, word: Word) {
+    setBusy(true);
+    setError(null);
+    try {
+      // One image per word: clear the same image from other words first is optional;
+      // assigning replaces this word's picture.
+      await persistWordImage(word, wordImageValue(img));
+      setAssigning(null);
+      flash(`Assigned “${img.title}” to ${word.french}`);
+    } catch {
+      setError("Could not assign image. Check you are signed in and try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unlinkWord(img: LibraryImage, word: Word) {
+    setBusy(true);
+    setError(null);
+    try {
+      await persistWordImage(word, null);
+      flash(`Removed picture from ${word.french}`);
+    } catch {
+      setError("Could not unlink image. Try again while signed in.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -178,7 +216,8 @@ function ImagesPage() {
           <h1 className="font-kids text-4xl font-semibold tracking-tight">Images</h1>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             Upload pictures, then tap <span className="font-semibold text-foreground">Assign</span>{" "}
-            to attach one to a vocabulary word. You can also assign from Edit word on any card.
+            to attach one to a vocabulary word. Your uploads can be deleted anytime; starter pack
+            pictures stay available but can be unlinked from words.
           </p>
         </div>
         <div>
@@ -196,7 +235,7 @@ function ImagesPage() {
             onClick={() => fileRef.current?.click()}
             className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {busy ? "Uploading…" : "Upload image"}
+            {busy ? "Working…" : "Upload image"}
           </button>
         </div>
       </div>
@@ -212,8 +251,17 @@ function ImagesPage() {
               key={img.id}
               className="flex flex-col overflow-hidden rounded-3xl bg-card ring-1 ring-border"
             >
-              <div className="flex aspect-[4/3] items-center justify-center bg-muted/40 p-4">
+              <div className="relative flex aspect-[4/3] items-center justify-center bg-muted/40 p-4">
                 <img src={img.src} alt="" className="max-h-full max-w-full object-contain" />
+                {img.kind === "upload" ? (
+                  <button
+                    type="button"
+                    onClick={() => remove(img)}
+                    className="absolute right-3 top-3 rounded-full bg-card/95 px-3 py-1.5 text-xs font-semibold text-destructive shadow-sm ring-1 ring-border hover:bg-destructive/10"
+                  >
+                    Delete
+                  </button>
+                ) : null}
               </div>
               <div className="flex flex-1 flex-col gap-2 p-4">
                 {editing?.id === img.id ? (
@@ -222,7 +270,7 @@ function ImagesPage() {
                     onSubmit={(e) => {
                       e.preventDefault();
                       const fd = new FormData(e.currentTarget);
-                      saveTitle(img, String(fd.get("title") ?? ""));
+                      void saveTitle(img, String(fd.get("title") ?? ""));
                     }}
                   >
                     <input
@@ -253,15 +301,28 @@ function ImagesPage() {
                 {linked.length ? (
                   <ul className="flex flex-col gap-2 rounded-2xl bg-muted/45 px-3 py-2.5 ring-1 ring-border/70">
                     {linked.map((word) => (
-                      <li key={word.id} className="min-w-0">
-                        <p className="flex items-center gap-1.5 font-kids text-sm font-semibold tracking-tight text-foreground">
-                          <LangFlag lang="fr" className="size-3.5 shrink-0" />
-                          <span className="truncate">{word.french}</span>
-                        </p>
-                        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <LangFlag lang="en" className="size-3.5 shrink-0" />
-                          <span className="truncate">{word.english}</span>
-                        </p>
+                      <li
+                        key={word.id}
+                        className="flex items-start justify-between gap-2"
+                      >
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1.5 font-kids text-sm font-semibold tracking-tight text-foreground">
+                            <LangFlag lang="fr" className="size-3.5 shrink-0" />
+                            <span className="truncate">{word.french}</span>
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <LangFlag lang="en" className="size-3.5 shrink-0" />
+                            <span className="truncate">{word.english}</span>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void unlinkWord(img, word)}
+                          className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold text-muted-foreground ring-1 ring-border hover:text-destructive disabled:opacity-60"
+                        >
+                          Unlink
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -272,8 +333,9 @@ function ImagesPage() {
                 <div className="mt-auto flex flex-wrap gap-1.5 pt-1">
                   <button
                     type="button"
+                    disabled={busy}
                     onClick={() => setAssigning(img)}
-                    className="rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+                    className="rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-60"
                   >
                     {linked.length ? "Change word" : "Assign to word"}
                   </button>
@@ -307,7 +369,7 @@ function ImagesPage() {
           image={assigning}
           words={words}
           onClose={() => setAssigning(null)}
-          onAssign={(word) => assignToWord(assigning, word)}
+          onAssign={(word) => void assignToWord(assigning, word)}
         />
       ) : null}
 
@@ -350,7 +412,7 @@ function ImagesPage() {
           pendingLinked.length > 0 ? "Delete and unlink" : "Delete image"
         }
         onCancel={() => setPendingDelete(null)}
-        onConfirm={confirmRemove}
+        onConfirm={() => void confirmRemove()}
       />
     </main>
   );
@@ -445,7 +507,9 @@ function AssignWordModal({
 
         <ul className="min-h-0 flex-1 overflow-y-auto p-2">
           {hits.map((word) => {
-            const already = word.image === image.id || word.image === image.src;
+            const value = wordImageValue(image);
+            const already =
+              word.image === image.id || word.image === image.src || word.image === value;
             return (
               <li key={word.id}>
                 <button

@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS words (
   french      text NOT NULL,
   english     text NOT NULL,
   image_id    uuid REFERENCES images (id) ON DELETE SET NULL,
+  image_ref   text,
   sort_order  integer NOT NULL DEFAULT 0,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()

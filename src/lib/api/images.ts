@@ -64,6 +64,18 @@ export const deleteImageFn = createServerFn({ method: "POST" })
   .validator(z.object({ id: z.string().uuid() }))
   .handler(async ({ data }) => {
     const teacher = await requireTeacher();
+    // Clear word links first (image_id SET NULL via FK; also wipe matching image_ref URLs).
+    await sql`
+      UPDATE words
+      SET image_id = NULL,
+          image_ref = CASE
+            WHEN image_ref = ${`/api/uploads/${data.id}`} THEN NULL
+            ELSE image_ref
+          END,
+          updated_at = now()
+      WHERE teacher_id = ${teacher.id}::uuid
+        AND (image_id = ${data.id}::uuid OR image_ref = ${`/api/uploads/${data.id}`})
+    `;
     const rows = await sql<{ storage_key: string }[]>`
       DELETE FROM images
       WHERE id = ${data.id}::uuid AND teacher_id = ${teacher.id}::uuid
@@ -78,4 +90,29 @@ export const deleteImageFn = createServerFn({ method: "POST" })
       }
     }
     return { ok: true as const };
+  });
+
+export const renameImageFn = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      id: z.string().uuid(),
+      title: z.string().min(1).max(48),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const teacher = await requireTeacher();
+    const title = data.title.replace(/\s+/g, " ").trim().slice(0, 48);
+    const rows = await sql<{ id: string; title: string }[]>`
+      UPDATE images
+      SET title = ${title}
+      WHERE id = ${data.id}::uuid AND teacher_id = ${teacher.id}::uuid
+      RETURNING id, title
+    `;
+    if (!rows[0]) {
+      throw new Response(JSON.stringify({ error: "Not found" }), {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return rows[0];
   });
