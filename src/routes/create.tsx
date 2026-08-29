@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ActivityPosterCard } from "@/components/ActivityPosterCard";
+import {
+  ActivityPosterCard,
+  wheelModePosterSrc,
+} from "@/components/ActivityPosterCard";
 import { AppChrome } from "@/components/AppChrome";
 import {
   activateBoardMode,
@@ -55,7 +58,7 @@ function CreatePage() {
 
   return (
     <AppChrome>
-      <main className="mx-auto max-w-4xl px-6 pb-24 pt-8">
+      <main className="mx-auto max-w-3xl px-6 pb-24 pt-8">
         <Link
           to="/home"
           className="mb-3 inline-block text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
@@ -67,7 +70,7 @@ function CreatePage() {
           Choose a mode for the board. Activate modes under Create first.
         </p>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:max-w-4xl">
+        <div className="vocablab-activity-board mt-10">
           {enabledModes.map((mode) => {
             const playable = mode.playable;
             return (
@@ -77,19 +80,14 @@ function CreatePage() {
                   ? { to: "/wheel" as const, search: { mode: mode.id } }
                   : {})}
                 disabled={!playable}
-                title="Wheel of Names"
+                eyebrow="Wheel of Names"
+                title={mode.label}
+                artSrc={wheelModePosterSrc(mode.id)}
                 teaser={
                   playable
                     ? MODE_TEASERS[mode.id]
                     : "Coming soon — activate it now so it is ready when play ships."
                 }
-                modes={[
-                  {
-                    id: mode.id,
-                    label: mode.label,
-                    active: true,
-                  },
-                ]}
                 onOpen={() => {
                   try {
                     sessionStorage.setItem("vocablab.wheel.playMode", mode.id);

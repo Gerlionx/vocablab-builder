@@ -1578,14 +1578,21 @@
 }
 
 /* ——— Activity poster cards ——— */
+.vocablab-activity-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+  gap: 1rem 1.1rem;
+  max-width: 42rem;
+}
+
 .vocablab-activity-card {
   position: relative;
   display: block;
   overflow: hidden;
-  border-radius: 1.35rem;
+  border-radius: 1.15rem;
   background: oklch(0.22 0.04 250);
   box-shadow:
-    0 14px 36px oklch(0.35 0.06 250 / 16%),
+    0 12px 28px oklch(0.35 0.06 250 / 16%),
     0 0 0 1px oklch(1 0 0 / 8%);
   transform: translateZ(0);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -1595,7 +1602,7 @@
 .vocablab-activity-card:focus-visible {
   transform: translateY(-3px);
   box-shadow:
-    0 18px 40px oklch(0.35 0.08 250 / 20%),
+    0 16px 34px oklch(0.35 0.08 250 / 20%),
     0 0 0 1px oklch(1 0 0 / 12%);
 }
 
@@ -1605,7 +1612,7 @@
 
 .vocablab-activity-card-stage {
   position: relative;
-  aspect-ratio: 16 / 11;
+  aspect-ratio: 5 / 4;
   overflow: hidden;
 }
 
@@ -1652,15 +1659,16 @@
 
 .vocablab-activity-card-wheel {
   position: absolute;
-  right: clamp(0.65rem, 3vw, 1.1rem);
-  top: clamp(0.65rem, 2.8vw, 1rem);
-  width: clamp(2.6rem, 8vw, 3.6rem);
-  height: clamp(2.6rem, 8vw, 3.6rem);
+  z-index: 3;
+  right: clamp(0.55rem, 2.4vw, 0.85rem);
+  top: clamp(0.55rem, 2.4vw, 0.85rem);
+  width: clamp(2.35rem, 7vw, 3rem);
+  height: clamp(2.35rem, 7vw, 3rem);
   border-radius: 999px;
   box-shadow:
-    0 0 0 2px oklch(1 0 0 / 55%),
-    0 8px 20px oklch(0.2 0.05 250 / 35%);
-  animation: vocablab-activity-wheel-idle 14s linear infinite;
+    0 0 0 2px oklch(1 0 0 / 65%),
+    0 6px 16px oklch(0.2 0.05 250 / 40%);
+  animation: vocablab-activity-wheel-idle 6s linear infinite;
 }
 
 .vocablab-activity-card-body {
@@ -1672,15 +1680,26 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.4rem;
-  padding: clamp(0.85rem, 2.8vw, 1.25rem) clamp(0.9rem, 3vw, 1.35rem)
-    clamp(0.95rem, 3vw, 1.35rem);
+  gap: 0.28rem;
+  padding: clamp(0.7rem, 2.4vw, 1rem) clamp(0.75rem, 2.6vw, 1.1rem)
+    clamp(0.8rem, 2.6vw, 1.1rem);
+}
+
+.vocablab-activity-card-eyebrow {
+  margin: 0;
+  max-width: 22ch;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: oklch(0.96 0.02 95 / 72%);
+  text-shadow: 0 1px 8px oklch(0.15 0.05 250 / 45%);
 }
 
 .vocablab-activity-card-title {
   margin: 0;
-  max-width: 14ch;
-  font-size: clamp(1.55rem, 3.8vw, 2.15rem);
+  max-width: 12ch;
+  font-size: clamp(1.35rem, 3.2vw, 1.85rem);
   font-weight: 700;
   line-height: 0.98;
   letter-spacing: -0.03em;
@@ -1699,7 +1718,7 @@
 .vocablab-activity-card.is-disabled:hover {
   transform: none;
   box-shadow:
-    0 14px 36px oklch(0.35 0.06 250 / 16%),
+    0 12px 28px oklch(0.35 0.06 250 / 16%),
     0 0 0 1px oklch(1 0 0 / 8%);
 }
 
@@ -1764,8 +1783,8 @@ button.vocablab-activity-card-mode.is-toggle:focus-visible {
 
 .vocablab-activity-card-teaser {
   margin: 0.05rem 0 0;
-  max-width: 26ch;
-  font-size: 0.82rem;
+  max-width: 24ch;
+  font-size: 0.78rem;
   line-height: 1.35;
   color: oklch(0.93 0.02 95 / 82%);
 }

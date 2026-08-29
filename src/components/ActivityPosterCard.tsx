@@ -17,9 +17,14 @@ export type ModeChip = {
 type ActivityPosterCardProps = {
   to?: "/wheel" | "/game-settings/wheel" | string;
   search?: { mode?: WheelGameModeId };
+  /** Hero headline — on Activity this is the mode name. */
   title: string;
+  /** Small game label above the title (e.g. Wheel of Names). */
+  eyebrow?: string;
   teaser: string;
-  modes: readonly ModeChip[];
+  modes?: readonly ModeChip[];
+  /** Poster art under the wash. Defaults to the Standard Wheel poster. */
+  artSrc?: string;
   /** When set, card is visual-only (e.g. coming soon). */
   disabled?: boolean;
   /** Create hub: tap a mode chip to activate / set it for the Activity board. */
@@ -32,8 +37,10 @@ export function ActivityPosterCard({
   to,
   search,
   title,
+  eyebrow,
   teaser,
-  modes,
+  modes = [],
+  artSrc = "/wheel-of-names-poster.png",
   disabled = false,
   onModeClick,
   onOpen,
@@ -48,17 +55,20 @@ export function ActivityPosterCard({
   const body = (
     <>
       <div className="vocablab-activity-card-stage" aria-hidden="true">
-        <img
-          src="/wheel-of-names-poster.png"
-          alt=""
-          className="vocablab-activity-card-art"
-        />
+        <img src={artSrc} alt="" className="vocablab-activity-card-art" />
         <div className="vocablab-activity-card-wash" />
         <div className="vocablab-activity-card-sparkles" />
-        <div className="vocablab-activity-card-wheel" style={{ background: WHEEL_CONIC }} />
+        <div
+          className="vocablab-activity-card-wheel"
+          style={{ background: WHEEL_CONIC }}
+          title="Wheel of Names"
+        />
       </div>
 
       <div className="vocablab-activity-card-body">
+        {eyebrow ? (
+          <p className="vocablab-activity-card-eyebrow font-kids">{eyebrow}</p>
+        ) : null}
         <h2 className="vocablab-activity-card-title font-kids">{title}</h2>
         {modes.length ? (
           <ul className="vocablab-activity-card-modes" aria-label="Game modes">
@@ -149,4 +159,10 @@ export function boardWheelModeChips(
     label: mode.label,
     active: mode.id === activeMode,
   }));
+}
+
+/** Poster art per Wheel mode for the Activity board. */
+export function wheelModePosterSrc(modeId: WheelGameModeId): string {
+  if (modeId === "time") return "/wheel-of-time-poster.png";
+  return "/wheel-of-names-poster.png";
 }
